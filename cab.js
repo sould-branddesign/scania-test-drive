@@ -348,7 +348,11 @@
   /* ---------- shared bits ---------- */
   function screen(extra = '') { return h(`<section class="screen ${extra}"></section>`); }
   function body() { const b = h('<div class="screen__body"></div>'); if (noAnim) b.style.animation = 'none'; return b; }
-  function head() { return h(`<div class="screen__head">${LOGO}</div>`); }
+  function head() {
+    const hd = h(`<div class="screen__head"><div class="screen__head-left">${LOGO}</div></div>`);
+    if (restartBtn) hd.querySelector('.screen__head-left').appendChild(restartBtn);
+    return hd;
+  }
   function foot({ back, next, nextLabel } = {}) {
     const f = h('<div class="screen__foot"></div>');
     if (back) { const b = h(`<button class="linkbtn">${ARROW_L}${esc(t().back)}</button>`); b.onclick = back; f.appendChild(b); }
