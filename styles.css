@@ -1379,8 +1379,9 @@ body.test .screen {
   margin: 0 auto;
   height: 100dvh;
   min-height: 0;
-  overflow-x: visible;
-  overflow-y: hidden;
+  overflow: visible;   /* .app (same fixed height) clips vertically instead — mixing
+                          overflow-x:visible with overflow-y:hidden computes to
+                          overflow-x:auto per spec, which still clipped the header bleed */
   background: transparent;       /* no card surface — the page fills the screen */
   border: none;
   border-radius: 0;
