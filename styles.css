@@ -364,6 +364,9 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   min-height: 54px;   /* 26px (.vehicle-chip height) + this rule's own 14px+14px padding, so the header's total height stays fixed whether or not a chip is present */
   position: relative;
   z-index: 1;
+  background: var(--navy-900);   /* opaque backdrop so the animated bg-glow blobs behind the page
+                                     (teal on the left, blue on the right) don't tint the shadow below
+                                     unevenly — keeps the glow a flat, uniform white */
   box-shadow: 0 8px 20px -6px rgba(255,255,255,.35);
   margin: calc(-1 * var(--pad-top, 26px)) calc(-1 * var(--pad-x, 26px)) 36px calc(-1 * var(--pad-x, 26px));
   padding: 14px var(--pad-x, 26px);
