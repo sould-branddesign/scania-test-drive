@@ -1223,6 +1223,13 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
     grid-template-columns: 1fr;
   }
   .cover__cta { align-self: start; margin-top: 18px; }
+
+  /* narrow phones: two columns leaves too little width for longer vehicle
+     names (e.g. "Volvo FH Electric", "Mercedes eActros") and they get
+     ellipsis-truncated — shrink the pill typography so full names fit
+     while keeping the 2-column grid (a 1-column grid would double the
+     list height and overflow the fixed-height kiosk screen). */
+  .vehicle { font-size: 10px; letter-spacing: .5px; padding: 8px 5px; }
 }
 
 /* ============================================================
