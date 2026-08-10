@@ -188,7 +188,7 @@
 
     const hd = head();
     const chipStyle = `--chip:${brand.solid}${brand.solidB ? ';--chip-b:' + brand.solidB : ''}`;
-    hd.appendChild(h(`<span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${chipStyle}">${esc(vehicle ? vehicle.name : '')}</span>`));
+    hd.querySelector('.screen__head-right').appendChild(h(`<span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${chipStyle}">${esc(vehicle ? vehicle.name : '')}</span>`));
     s.appendChild(hd);
 
     const total = activeQuestions().length;
@@ -302,8 +302,8 @@
   function screen(extra = '') { return h(`<section class="screen ${extra}"></section>`); }
   function body() { const b = h('<div class="screen__body"></div>'); if (noAnim) b.style.animation = 'none'; return b; }
   function head() {
-    const hd = h(`<div class="screen__head"><div class="screen__head-left">${LOGO}</div></div>`);
-    if (restartBtn) hd.querySelector('.screen__head-left').appendChild(restartBtn);
+    const hd = h(`<div class="screen__head"><div class="screen__head-left">${LOGO}</div><div class="screen__head-right"></div></div>`);
+    if (restartBtn) hd.querySelector('.screen__head-right').appendChild(restartBtn);
     return hd;
   }
   function foot({ back, next, nextLabel } = {}) {
