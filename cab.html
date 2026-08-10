@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Cab Assessment" />
+  <meta name="theme-color" content="#02102c" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/app-icon.svg" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <title>Scania · Cab Assessment</title>
+  <link rel="stylesheet" href="styles.css?v=178" />
+  <script>if(!location.search)location.replace('cab.html?v=9');</script>
+</head>
+<body class="test">
+  <div class="bg-hex" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <div class="bg-hex-glow" aria-hidden="true" style="display:none"></div>
+  <a class="admin-link" href="admin.html?form=cab">Admin</a>
+  <button class="restart-link" id="restartBtn">Restart</button>
+
+  <main id="app" class="app"></main>
+
+  <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+  <script src="core.js?v=43"></script>
+  <script src="sheets.js?v=10"></script>
+  <script src="cab.js?v=57"></script>
+</body>
+</html>

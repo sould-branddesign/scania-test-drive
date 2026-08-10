@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!-- iPad: run fullscreen when added to the home screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Test Drive" />
+  <meta name="theme-color" content="#02102c" />
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/app-icon.svg" />
+  <title>Scania · Test Drive</title>
+  <link rel="stylesheet" href="styles.css?v=178" />
+  <script>if(!location.search)location.replace('index.html?v=11');</script>
+</head>
+<body class="test">
+  <!-- decorative full-page background -->
+  <div class="bg-hex" aria-hidden="true"></div>
+  <div class="bg-glow" aria-hidden="true"></div>
+
+  <!-- animated hex spotlight layer -->
+  <div class="bg-hex-glow" aria-hidden="true"></div>
+  <!-- discreet way for staff to reach the admin page -->
+  <a class="admin-link" href="admin.html">Admin</a>
+  <button class="restart-link" id="restartBtn">Restart</button>
+
+  <main id="app" class="app"><!-- evaluation flow renders here --></main>
+
+  <script>if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');</script>
+  <script src="core.js?v=43"></script>
+  <script src="sheets.js?v=10"></script>
+  <script src="test.js?v=36"></script>
+  <script>
+  (function() {
+    // Orb 1 — cool cyan, 28s loop
+    var pts1 = [[20,10],[72,28],[55,78],[82,52],[18,68],[20,10]];
+    var dur1 = 28000;
+    // Orb 2 — #01AAD3, 22s loop, different starting phase
+    var pts2 = [[78,82],[18,55],[65,18],[30,72],[85,35],[78,82]];
+    var dur2 = 22000;
+    var start = performance.now() - 8000; // offset so orbs start apart
+    var cover = null;
+    var baseBg = null;
+    function lerp(a,b,t){ return a+(b-a)*t; }
+    function ease(t){ return t<0.5?2*t*t:(1-Math.pow(-2*t+2,2)/2); }
+    function orbAt(pts, dur, now) {
+      var elapsed = (now - start) % dur;
+      var n = pts.length - 1;
+      var seg = (elapsed / dur) * n;
+      var i = Math.min(Math.floor(seg), n-1);
+      var f = ease(seg - i);
+      return [lerp(pts[i][0], pts[i+1][0], f), lerp(pts[i][1], pts[i+1][1], f)];
+    }
+    function tick(now) {
+      if (!cover || !cover.isConnected) { cover = document.querySelector('.cover'); baseBg = null; }
+      if (cover && document.body.classList.contains('is-intro')) {
+        if (!baseBg) baseBg = getComputedStyle(cover).background;
+        var p1 = orbAt(pts1, dur1, now);
+        var p2 = orbAt(pts2, dur2, now);
+        cover.style.background =
+          'radial-gradient(ellipse 58% 48% at '+p1[0].toFixed(2)+'% '+p1[1].toFixed(2)+'%, rgba(0,240,255,0.42) 0%, rgba(0,200,240,0.15) 52%, transparent 100%), ' +
+          'radial-gradient(ellipse 52% 42% at '+p2[0].toFixed(2)+'% '+p2[1].toFixed(2)+'%, rgba(9,172,160,0.38) 0%, rgba(9,140,130,0.13) 52%, transparent 100%), ' +
+          baseBg;
+      } else if (cover && baseBg) {
+        cover.style.background = baseBg;
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>
