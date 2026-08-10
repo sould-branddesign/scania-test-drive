@@ -365,12 +365,33 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   position: relative;
   z-index: 1;
   background: var(--navy-900);   /* opaque backdrop so the animated bg-glow blobs behind the page
-                                     (teal on the left, blue on the right) don't tint the shadow below
-                                     unevenly — keeps the glow a flat, uniform white */
-  box-shadow: 0 8px 20px -6px rgba(255,255,255,.35);
+                                     (teal on the left, blue on the right) don't show through the header */
   margin: calc(-1 * var(--pad-top, 26px)) calc(-1 * var(--pad-x, 26px)) 36px calc(-1 * var(--pad-x, 26px));
   padding: 14px var(--pad-x, 26px);
 }
+.screen__head::before {
+  /* the glow's blur extends *below* the header's own box, into the page
+     background, so the bg-glow blobs behind the page were tinting it —
+     extend this opaque backdrop past the blur zone too (~30px) to block
+     them there as well. No shadow here; see ::after. */
+  content: '';
+  position: absolute;
+  inset: 0 0 -30px 0;
+  background: var(--navy-900);
+  z-index: 0;
+}
+.screen__head::after {
+  /* casts the actual glow, sized to the header's own bounds (not the
+     extended ::before) — its blur lands on ::before's flat navy fill
+     instead of the page background, so it can't pick up a color tint. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: 0 8px 20px -6px rgba(255,255,255,.35);
+  z-index: 0;
+  pointer-events: none;
+}
+.screen__head-left, .screen__head-right { position: relative; z-index: 1; }
 .screen__head .logo { font-size: 18px; }
 
 .vehicle-chip {
