@@ -365,9 +365,33 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   position: relative;
   z-index: 1;
   background: var(--navy-900);
-  box-shadow: 0 8px 20px -6px rgba(255,255,255,.4);
   margin: calc(-1 * var(--pad-top, 26px)) calc(-1 * var(--pad-x, 26px)) 36px calc(-1 * var(--pad-x, 26px));
   padding: 14px var(--pad-x, 26px);
+}
+.screen__head::before {
+  /* isolates the glow (::after) from the page's decorative bg-glow blobs,
+     which sit right at the top of the page (teal left, blue right) and
+     would otherwise tint the glow unevenly and inconsistently between
+     screens/vehicles. Fades out rather than cutting off hard, so it
+     never reads as a visible block — by the point it's fully transparent,
+     the glow itself (::after) has already faded to nothing too. */
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  height: 64px;
+  background: linear-gradient(180deg, var(--navy-900) 0%, var(--navy-900) 35%, transparent 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+.screen__head::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  box-shadow: 0 8px 20px -6px rgba(255,255,255,.4);
+  z-index: 1;
+  pointer-events: none;
 }
 .screen__head .logo { font-size: 18px; }
 
