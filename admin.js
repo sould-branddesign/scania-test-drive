@@ -749,6 +749,7 @@
   let editDraft = null;
   let editLang = 'en';        // 'en' = edit the English source; any other code = edit that language's translations
   let translationDraft = null;
+  let sheetsUnlocked = false; // Sheets webhook URL is read-only until explicitly unlocked — see sheetsCfgHtml()
 
   /* current effective text for a category in `lang` — admin override, else the baked-in translation, else null */
   function effectiveCatTranslation(lang, catId) {
@@ -775,12 +776,52 @@
       metrics,
     };
   }
+  /* Read-only by default so the shared webhook URL can't be nudged by an
+     accidental click/edit — has to be deliberately unlocked (with a
+     confirm, since every device syncs through this one link) first. */
+  function sheetsCfgHtml() {
+    const sheetsUrl = window.STDSheets ? window.STDSheets.getUrl() : '';
+    const queueLen  = window.STDSheets ? window.STDSheets.loadQueue().length : 0;
+    const locked = !!sheetsUrl && !sheetsUnlocked;
+    return `
+      <h2 class="sheets-cfg__title">Google Sheets sync</h2>
+      <p class="sheets-cfg__hint">Paste the URL from your deployed Google Apps Script web app. Each submitted evaluation is sent as rows (one per metric). Submissions are queued locally if offline and synced automatically when connectivity returns.</p>
+      <div class="sheets-cfg__row">
+        <input class="sheets-cfg__input" id="sheetsUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(sheetsUrl)}" ${locked ? 'readonly' : ''} />
+        ${locked
+          ? '<button class="btn secondary" data-act="sheets-unlock">🔒 Unlock to edit</button>'
+          : '<button class="btn" data-act="sheets-save">Save URL</button>'}
+        ${queueLen ? `<button class="btn secondary" data-act="sheets-flush">Sync now (${queueLen} pending)</button>` : ''}
+      </div>
+      ${sheetsUrl ? '<p class="sheets-cfg__status" id="sheetsCfgStatus"></p>' : ''}
+    `;
+  }
+  function renderSheetsCfg() {
+    const el = $('.sheets-cfg');
+    if (el) el.innerHTML = sheetsCfgHtml();
+  }
+
+  function confirmUnlockSheetsUrl(onConfirm) {
+    const overlay = h('<div class="confirm-overlay"></div>');
+    const box = h(`<div class="confirm-box">
+      <p class="confirm-box__title">Unlock this link?</p>
+      <p class="confirm-box__msg">Every device sends results and question updates through this one URL. Only change it if you're pointing the app at a different backend.</p>
+      <div class="confirm-box__btns">
+        <button class="btn-cancel">Cancel</button>
+        <button class="btn-confirm">Unlock</button>
+      </div>
+    </div>`);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    box.querySelector('.btn-cancel').onclick = () => overlay.remove();
+    box.querySelector('.btn-confirm').onclick = () => { overlay.remove(); onConfirm(); };
+  }
+
   function viewEditor() {
     editLang = 'en';
     editDraft = JSON.parse(JSON.stringify(activeForm === 'cab' ? state.cabQuestions : state.questions));
     translationDraft = null;
-    const sheetsUrl = window.STDSheets ? window.STDSheets.getUrl() : '';
-    const queueLen  = window.STDSheets ? window.STDSheets.loadQueue().length : 0;
+    sheetsUnlocked = false;
     const wrap = h(`<div class="editor" style="padding-top:0">
       <div class="editor__head">
         <h1>Edit Questions</h1>
@@ -797,16 +838,7 @@
         <p class="lang-edit-bar__hint">Pick a language to translate the categories and metrics below. Leave a field empty to fall back to the English text. Categories, metrics and their order can only be changed in English — translations just override the wording.</p>
       </div>
 
-      <div class="sheets-cfg">
-        <h2 class="sheets-cfg__title">Google Sheets sync</h2>
-        <p class="sheets-cfg__hint">Paste the URL from your deployed Google Apps Script web app. Each submitted evaluation is sent as rows (one per metric). Submissions are queued locally if offline and synced automatically when connectivity returns.</p>
-        <div class="sheets-cfg__row">
-          <input class="sheets-cfg__input" id="sheetsUrl" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(sheetsUrl)}" />
-          <button class="btn" data-act="sheets-save">Save URL</button>
-          ${queueLen ? `<button class="btn secondary" data-act="sheets-flush">Sync now (${queueLen} pending)</button>` : ''}
-        </div>
-        ${sheetsUrl ? '<p class="sheets-cfg__status" id="sheetsCfgStatus"></p>' : ''}
-      </div>
+      <div class="sheets-cfg">${sheetsCfgHtml()}</div>
 
       <div id="qlist"></div>
       <button class="btn add" data-act="add-cat">+ Add category</button>
@@ -991,6 +1023,13 @@
           toast('Translations saved for ' + ((LANGS.find((l) => l.code === editLang) || {}).label || editLang));
         }
         if (window.STDSheets) window.STDSheets.pushConfig(window.STD.getConfigBundle());
+        break;
+      case 'sheets-unlock':
+        confirmUnlockSheetsUrl(() => {
+          sheetsUnlocked = true;
+          renderSheetsCfg();
+          const input = $('#sheetsUrl'); if (input) input.focus();
+        });
         break;
       case 'sheets-save': {
         const url = $('#sheetsUrl') ? $('#sheetsUrl').value.trim() : '';

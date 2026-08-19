@@ -1101,6 +1101,8 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
 .sheets-cfg__row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .sheets-cfg__input { flex: 1; min-width: 240px; background: rgba(2,16,44,.6); border: 1px solid rgba(27,50,98,.9); border-radius: 8px; color: #fff; font-size: 13px; padding: 10px 14px; outline: none; }
 .sheets-cfg__input:focus { border-color: var(--teal); }
+.sheets-cfg__input[readonly] { color: var(--ink-dim); background: rgba(2,16,44,.3); cursor: not-allowed; }
+.sheets-cfg__input[readonly]:focus { border-color: rgba(27,50,98,.9); }
 .sheets-cfg__status { font-size: 13px; color: var(--ink-dim); margin: 10px 0 0; }
 
 .qcard {
