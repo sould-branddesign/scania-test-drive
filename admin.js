@@ -990,6 +990,7 @@
           save();
           toast('Translations saved for ' + ((LANGS.find((l) => l.code === editLang) || {}).label || editLang));
         }
+        if (window.STDSheets) window.STDSheets.pushConfig(window.STD.getConfigBundle());
         break;
       case 'sheets-save': {
         const url = $('#sheetsUrl') ? $('#sheetsUrl').value.trim() : '';
@@ -1025,6 +1026,11 @@
   window.addEventListener('storage', (e) => {
     if (e.key === window.STD.STORE_KEY) { window.STD.load(); if (view === 'results') render(); }
   });
+
+  /* same, but for a config edit pulled in from another device via Sheets — see sheets.js.
+     Doesn't touch the editor's own in-progress draft (that's a local copy, not read from
+     state again until it's reopened), so this is safe to fire even mid-edit. */
+  window.STD.onQuestionsChanged = () => { if (view === 'results') render(); };
 
   /* ---------- boot ---------- */
   window.STD.load();

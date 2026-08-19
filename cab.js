@@ -369,6 +369,11 @@
     }
   });
 
+  /* same, but for a config edit pulled in from another device via Sheets — see sheets.js */
+  window.STD.onQuestionsChanged = () => {
+    if (ui.view === 'intro' || ui.view === 'language') render();
+  };
+
   /* Auto-reload after 30 min of idle on intro screen */
   let lastActive = Date.now();
   document.addEventListener('visibilitychange', () => {

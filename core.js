@@ -493,6 +493,30 @@
     save();
   }
 
+  /* Overwrite the locally-editable config (questions/vehicles/translations)
+     with a version pulled from the shared Sheets backend, so an edit made
+     on one device's admin page reaches every other device running the
+     app — see sheets.js's syncConfig() for when this gets called. */
+  function getConfigBundle() {
+    return {
+      questions: state.questions,
+      cabQuestions: state.cabQuestions,
+      vehicles: state.vehicles,
+      cabVehicles: state.cabVehicles,
+      translations: state.translations,
+    };
+  }
+  function applyRemoteConfig(cfg) {
+    if (!cfg) return;
+    if (Array.isArray(cfg.questions) && cfg.questions.length) state.questions = cfg.questions.map(normaliseCategory);
+    if (Array.isArray(cfg.cabQuestions) && cfg.cabQuestions.length) state.cabQuestions = cfg.cabQuestions.map(normaliseCategory);
+    if (Array.isArray(cfg.vehicles) && cfg.vehicles.length) state.vehicles = cfg.vehicles;
+    if (Array.isArray(cfg.cabVehicles) && cfg.cabVehicles.length) state.cabVehicles = cfg.cabVehicles;
+    if (cfg.translations && typeof cfg.translations === 'object') state.translations = cfg.translations;
+    save();
+    if (typeof STD.onQuestionsChanged === 'function') STD.onQuestionsChanged();
+  }
+
   function normaliseCategory(c) {
     return {
       id: c.id || slug(c.title),
@@ -547,7 +571,7 @@
   const STD = {
     STORE_KEY, $, h, esc, clamp, hashStr, slug,
     BRANDS, brandOf, DEFAULT_VEHICLES, DEFAULT_QUESTIONS, DEFAULT_CAB_VEHICLES, DEFAULT_CAB_QUESTIONS, LANGS, COUNTRIES, T, t, tCat, QI18N,
-    state, save, load, seedDemo, normaliseCategory,
+    state, save, load, seedDemo, normaliseCategory, getConfigBundle, applyRemoteConfig,
     vehicleCategoryScore, vehicleOverall, evaluatedVehicles, brandsPresent, brandCategoryScore, computeAll,
     onQuestionsChanged: null,   // pages set this to re-render when questions change
   };

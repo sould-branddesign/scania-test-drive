@@ -320,6 +320,11 @@
     if (e.key === window.STD.STORE_KEY) { window.STD.load(); if (ui.view === 'intro' || ui.view === 'language' || ui.view === 'vehicle') render(); }
   });
 
+  /* same, but for a config edit pulled in from another device via Sheets — see sheets.js */
+  window.STD.onQuestionsChanged = () => {
+    if (ui.view === 'intro' || ui.view === 'language' || ui.view === 'vehicle') render();
+  };
+
   /* ---------- boot ---------- */
   window.STD.load();
   render();

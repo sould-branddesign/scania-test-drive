@@ -17,10 +17,13 @@
   const PENDING_KEY  = 'scania_sheets_pending_v1';   // [{ at, submission }] — unconfirmed submissions
   const QUEUE_KEY    = 'scania_sheets_queue_v1';      // legacy key, migrated into PENDING_KEY below
   const CFG_KEY      = 'scania_sheets_url_v1';
+  const CONFIG_PENDING_KEY = 'scania_config_pending_v1';   // { at, json } — our own unconfirmed config push, if any
+  const CONFIG_APPLIED_KEY = 'scania_config_applied_at_v1'; // updatedAt of the remote config this device currently has applied
   const DEFAULT_URL  = 'https://script.google.com/macros/s/AKfycbzsdw59lQK78KnXcqRZZbon-JH0ZoJqrGvLfdtVI6RLl7zzBtnxU9AUBsOp56B9Vlgu/exec';
 
   const RECONCILE_GRACE_MS = 20000;      // let Sheets catch up before treating a submission as missing
   const RECONCILE_INTERVAL_MS = 120000;  // periodic safety-net check while the kiosk sits idle
+  const CONFIG_SYNC_INTERVAL_MS = 60000; // how often devices check for a newer shared question config
 
   function getUrl()  { return localStorage.getItem(CFG_KEY) || DEFAULT_URL; }
   function setUrl(u) { localStorage.setItem(CFG_KEY, u.trim()); }
@@ -144,9 +147,108 @@
   setInterval(reconcile, RECONCILE_INTERVAL_MS);
   reconcile();   // catches submissions left pending from a previous session
 
+  /* ============================================================
+     Shared question/vehicle/translation config — so editing the
+     questions in one browser's admin page reaches every device
+     running the app, instead of staying stuck in that one device's
+     localStorage. Stored as a single JSON blob + timestamp in the
+     spreadsheet's "Config" sheet (see google-apps-script.js).
+     ============================================================ */
+
+  function loadConfigPending()  { try { return JSON.parse(localStorage.getItem(CONFIG_PENDING_KEY) || 'null'); } catch { return null; } }
+  function saveConfigPending(p) { if (p) localStorage.setItem(CONFIG_PENDING_KEY, JSON.stringify(p)); else localStorage.removeItem(CONFIG_PENDING_KEY); }
+
+  async function pullConfig() {
+    const url = getUrl();
+    if (!url) return null;
+    try {
+      const res = await fetch(url + '?action=config', { cache: 'no-store' });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch {
+      return null;
+    }
+  }
+
+  async function postConfig(url, json) {
+    const form = new URLSearchParams();
+    form.append('config', json);
+    await fetch(url, { method: 'POST', mode: 'no-cors', body: form });
+  }
+
+  /* Push a config edit (from admin's question/translation editor).
+     Same no-cors blind-spot as evaluation submissions — see the
+     module comment up top — so it's kept as a pending push until
+     confirmed too. Only the latest edit matters here (unlike
+     evaluations, there's nothing to lose by superseding an earlier
+     unconfirmed push), so this holds one pending item, not a list. */
+  async function pushConfig(configObj) {
+    const url = getUrl();
+    if (!url) return { status: 'no-url' };
+    const json = JSON.stringify(configObj);
+    saveConfigPending({ at: Date.now(), json });
+    try {
+      await postConfig(url, json);
+    } catch {
+      /* offline — stays pending, syncConfig() retries it later */
+    }
+    syncConfig();   // opportunistic — will no-op on the push side until the grace period passes
+    return { status: 'pending' };
+  }
+
+  let syncingConfig = false;
+
+  /* Confirms/retries our own pending config push, then pulls whatever
+     is currently shared and applies it if it's newer than what this
+     device already has — that second half is what makes every other
+     device pick up an edit made on just one of them. Concurrent edits
+     from two devices at once aren't reconciled beyond last-write-wins,
+     same as the rest of this app's sync model. */
+  async function syncConfig() {
+    if (syncingConfig) return;
+    const url = getUrl();
+    if (!url) return;
+
+    syncingConfig = true;
+    try {
+      const pendingPush = loadConfigPending();
+      const pushDue = pendingPush && (Date.now() - pendingPush.at > RECONCILE_GRACE_MS);
+
+      if (pushDue) {
+        const remote = await pullConfig();
+        if (remote && remote.ok) {
+          if (remote.config && JSON.stringify(remote.config) === pendingPush.json) {
+            saveConfigPending(null);   // confirmed — landed as-is
+            if (remote.updatedAt) localStorage.setItem(CONFIG_APPLIED_KEY, remote.updatedAt);
+          } else {
+            try { await postConfig(url, pendingPush.json); } catch { /* still offline */ }
+            saveConfigPending({ at: Date.now(), json: pendingPush.json });   // reset the grace clock
+          }
+        }
+        return;   // either way, don't also apply a stale remote below this round
+      }
+
+      if (pendingPush) return;   // still inside the grace window — check again next pass
+
+      const remote = await pullConfig();
+      if (!remote || !remote.ok || !remote.config || !remote.updatedAt) return;
+      const appliedAt = localStorage.getItem(CONFIG_APPLIED_KEY) || '';
+      if (remote.updatedAt > appliedAt && window.STD && typeof window.STD.applyRemoteConfig === 'function') {
+        window.STD.applyRemoteConfig(remote.config);
+        localStorage.setItem(CONFIG_APPLIED_KEY, remote.updatedAt);
+      }
+    } finally {
+      syncingConfig = false;
+    }
+  }
+
+  setInterval(syncConfig, CONFIG_SYNC_INTERVAL_MS);
+  syncConfig();
+
   window.STDSheets = {
     submit, getUrl, setUrl, fetchAll,
     flushQueue: reconcile,     // kept for admin.js
     loadQueue: loadPending,    // kept for admin.js's "N pending" display
+    pushConfig, pullConfig, syncConfig,
   };
 })();

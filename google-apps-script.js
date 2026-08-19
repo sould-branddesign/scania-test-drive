@@ -14,8 +14,10 @@
  * (Distribuera → Hantera distributioner → redigera → ny version).
  */
 
-/* ---- doPost: ta emot en inskickad utvärdering ---- */
+/* ---- doPost: ta emot en inskickad utvärdering, eller en delad frågekonfiguration ---- */
 function doPost(e) {
+  if (e.parameter.config) return saveConfig(e.parameter.config);
+
   try {
     const data    = JSON.parse(e.parameter.data);
     const headers = data.headers   || [];
@@ -73,9 +75,56 @@ function doPost(e) {
   }
 }
 
-/* ---- doGet: returnera all rådata till admin-sidan ---- */
+/* ---- delad frågekonfiguration (frågor, fordon, översättningar) ----
+   Lagras i ett eget "Config"-ark så alla enheter som kör appen kan
+   läsa samma version, istället för att var och en bara har sin egen
+   lokala kopia i localStorage. ---- */
+const CONFIG_SHEET_NAME = 'Config';
+
+function saveConfig(json) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(CONFIG_SHEET_NAME) || ss.insertSheet(CONFIG_SHEET_NAME);
+    const updatedAt = new Date().toISOString();
+    sheet.getRange(1, 1, 2, 1).setValues([['updatedAt'], ['json']]);
+    sheet.getRange(1, 2, 2, 1).setValues([[updatedAt], [json]]);
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: true, updatedAt }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function readConfig() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
+  if (!sheet) return { updatedAt: null, config: null };
+  const updatedAt = sheet.getRange(1, 2).getValue();
+  const json = sheet.getRange(2, 2).getValue();
+  let config = null;
+  try { config = json ? JSON.parse(json) : null; } catch (e) { config = null; }
+  return { updatedAt: updatedAt ? String(updatedAt) : null, config };
+}
+
+/* ---- doGet: returnera all rådata (och den delade konfigurationen) till admin-sidan/enheterna ---- */
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
+
+  if (action === 'config') {
+    try {
+      const result = readConfig();
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: true, updatedAt: result.updatedAt, config: result.config }))
+        .setMimeType(ContentService.MimeType.JSON);
+    } catch (err) {
+      return ContentService
+        .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
 
   if (action === 'data') {
     try {
