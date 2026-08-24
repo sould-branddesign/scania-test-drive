@@ -30,7 +30,7 @@
     } catch (e) { /* ignore — CSS full-bleed still looks fullscreen */ }
   }
 
-  const ROUTE_ICONS_V = 5;
+  const ROUTE_ICONS_V = 7;
   const ROUTE_ICONS = [
     `assets/route/route-1.png?v=${ROUTE_ICONS_V}`,
     `assets/route/route-2.png?v=${ROUTE_ICONS_V}`,
