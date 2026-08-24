@@ -30,14 +30,15 @@
     } catch (e) { /* ignore — CSS full-bleed still looks fullscreen */ }
   }
 
-  const ROUTE_ICONS_V = 3;
+  const ROUTE_ICONS_V = 4;
   const ROUTE_ICONS = [
-    `assets/route/route-1.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-2.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-3.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-4.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-5.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-6.svg?v=${ROUTE_ICONS_V}`,
+    `assets/route/route-1.png?v=${ROUTE_ICONS_V}`,
+    `assets/route/route-2.png?v=${ROUTE_ICONS_V}`,
+    `assets/route/route-3.png?v=${ROUTE_ICONS_V}`,
+    `assets/route/route-4.png?v=${ROUTE_ICONS_V}`,
+    `assets/route/route-5.png?v=${ROUTE_ICONS_V}`,
+    `assets/route/route-6.png?v=${ROUTE_ICONS_V}`,
+    `assets/route/route-7.png?v=${ROUTE_ICONS_V}`,
   ];
   /* fetch all route icons into the browser cache right away, so none of them
      pop in late the first time a question screen using them is reached */
