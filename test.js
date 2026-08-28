@@ -30,18 +30,14 @@
     } catch (e) { /* ignore — CSS full-bleed still looks fullscreen */ }
   }
 
-  const ROUTE_ICONS_V = 8;
-  const ROUTE_ICONS = [
-    `assets/route/route-1.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-2.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-3.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-4.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-5.svg?v=${ROUTE_ICONS_V}`,
-    `assets/route/route-6.svg?v=${ROUTE_ICONS_V}`,
-  ];
-  /* fetch all route icons into the browser cache right away, so none of them
-     pop in late the first time a question screen using them is reached */
-  ROUTE_ICONS.forEach((src) => { const img = new Image(); img.src = src; });
+  /* Each category carries its own routeIcon (set in the admin editor) instead
+     of a fixed position-indexed list — so removing/reordering a question
+     doesn't leave the wrong icon on the wrong step. Preload whatever the
+     current question set has right away, so none of them pop in late the
+     first time a question screen using them is reached. */
+  function preloadRouteIcons() {
+    activeQuestions().forEach((cat) => { if (cat.routeIcon) { const img = new Image(); img.src = cat.routeIcon; } });
+  }
 
   const LOGO = '<img class="logo" src="assets/scania-logo.svg" alt="Scania">';
   const ARROW_R = '<svg class="arrow" viewBox="0 0 40 12" fill="none"><path d="M0 6h36M30 1l6 5-6 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -202,7 +198,7 @@
     s.appendChild(step);
 
     const b = body();
-    const routeIcon = ROUTE_ICONS[ui.stepIndex];
+    const routeIcon = cat.routeIcon;
     const head2 = h('<div class="question-head"></div>');
     if (routeIcon) head2.appendChild(h(`<img class="route-icon" src="${routeIcon}" alt="" aria-hidden="true">`));
     const textCol = h('<div class="question-head__text"></div>');
@@ -318,15 +314,17 @@
 
   /* pick up question/vehicle edits made in the admin tab without a manual refresh */
   window.addEventListener('storage', (e) => {
-    if (e.key === window.STD.STORE_KEY) { window.STD.load(); if (ui.view === 'intro' || ui.view === 'language' || ui.view === 'vehicle') render(); }
+    if (e.key === window.STD.STORE_KEY) { window.STD.load(); preloadRouteIcons(); if (ui.view === 'intro' || ui.view === 'language' || ui.view === 'vehicle') render(); }
   });
 
   /* same, but for a config edit pulled in from another device via Sheets — see sheets.js */
   window.STD.onQuestionsChanged = () => {
+    preloadRouteIcons();
     if (ui.view === 'intro' || ui.view === 'language' || ui.view === 'vehicle') render();
   };
 
   /* ---------- boot ---------- */
   window.STD.load();
+  preloadRouteIcons();
   render();
 })();

@@ -1154,6 +1154,21 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
 }
 .input:focus, .textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(24, 200, 212, .15); }
 
+.icon-picker { display: flex; align-items: center; gap: 12px; }
+.icon-picker__preview, .icon-picker__empty {
+  width: 64px; height: 64px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-sm);
+  background: var(--navy-800);
+  border: 1px solid var(--navy-600);
+  object-fit: contain;
+  padding: 6px;
+}
+.icon-picker__empty {
+  display: grid; place-items: center;
+  font-size: 10px; color: var(--ink-faint); text-align: center;
+}
+
 .metric-edit {
   border: 1px dashed var(--navy-600);
   border-radius: var(--radius-sm);

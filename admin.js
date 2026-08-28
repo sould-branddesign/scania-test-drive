@@ -750,6 +750,48 @@
   let editLang = 'en';        // 'en' = edit the English source; any other code = edit that language's translations
   let translationDraft = null;
   let sheetsUnlocked = false; // Sheets webhook URL is read-only until explicitly unlocked — see sheetsCfgHtml()
+  let pendingIconCi = -1;     // which editDraft category the hidden file input's next change event is for
+
+  const ROUTE_ICON_MAX_DIM = 900;      // px — plenty for the ~230x290 display box even at retina
+  const ROUTE_ICON_WARN_BYTES = 300000; // ~300KB data URI — still fine, but nudge toward SVG/smaller art
+
+  /* Reads a picked file into a data URI the category can carry directly (no
+     server-side file storage exists here — it just becomes part of the
+     synced question config, like title/instruction already are). SVGs pass
+     through untouched since they're already tiny and scale losslessly;
+     raster images get downscaled on a canvas first so a phone photo or an
+     unreduced export doesn't blow up the config that every device syncs. */
+  function readIconFile(file) {
+    return new Promise((resolve, reject) => {
+      if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > ROUTE_ICON_MAX_DIM || height > ROUTE_ICON_MAX_DIM) {
+            const scale = ROUTE_ICON_MAX_DIM / Math.max(width, height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => reject(new Error('Could not read that image'));
+        img.src = reader.result;
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
 
   /* current effective text for a category in `lang` — admin override, else the baked-in translation, else null */
   function effectiveCatTranslation(lang, catId) {
@@ -846,10 +888,25 @@
         <button class="btn secondary" data-act="cancel">Cancel</button>
         <button class="btn" data-act="save">Save changes</button>
       </div>
+      <input type="file" id="iconFileInput" accept=".svg,image/svg+xml,image/png,image/jpeg" style="display:none">
     </div>`);
     wrap.insertBefore(formSwitcher(), wrap.firstChild);
     wrap.addEventListener('click', editorClick);
     wrap.addEventListener('input', editorInput);
+    $('#iconFileInput', wrap).addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      e.target.value = '';
+      if (!file || pendingIconCi < 0) return;
+      const ci = pendingIconCi;
+      try {
+        const dataUrl = await readIconFile(file);
+        editDraft[ci].routeIcon = dataUrl;
+        if (dataUrl.length > ROUTE_ICON_WARN_BYTES) toast('Icon set — quite large, an SVG would sync faster');
+        renderQList();
+      } catch (err) {
+        toast('Could not read that image');
+      }
+    });
     $('#editLangSelect', wrap).addEventListener('change', (e) => {
       editLang = e.target.value;
       if (editLang !== 'en') translationDraft = buildTranslationDraft(editLang);
@@ -925,6 +982,16 @@
         </div>
         <div class="field"><label>Category title</label><input class="input" data-f="title" value="${esc(cat.title)}"></div>
         <div class="field"><label>Instruction</label><textarea class="textarea" data-f="instruction" rows="2">${esc(cat.instruction)}</textarea></div>
+        <div class="field">
+          <label>Route icon</label>
+          <div class="icon-picker">
+            ${cat.routeIcon
+              ? `<img class="icon-picker__preview" src="${esc(cat.routeIcon)}" alt="">`
+              : `<div class="icon-picker__empty">No icon</div>`}
+            <button class="btn secondary" type="button" data-act="icon-pick">Replace</button>
+            ${cat.routeIcon ? `<button class="iconbtn danger" type="button" data-act="icon-remove" title="Remove icon">✕</button>` : ''}
+          </div>
+        </div>
         <div class="metrics"></div>
         <button class="btn add" data-act="add-metric">+ Add metric</button>
       </div>`);
@@ -998,6 +1065,13 @@
       case 'down': if (ci < editDraft.length - 1) { [editDraft[ci + 1], editDraft[ci]] = [editDraft[ci], editDraft[ci + 1]]; renderQList(); } break;
       case 'add-metric': editDraft[ci].metrics.push({ id: slug('metric-' + Math.random()), label: 'New metric', min: 'Low', max: 'High', scale: 10 }); renderQList(); break;
       case 'del-metric': { const mi = Number(btn.closest('[data-mi]').dataset.mi); if (editDraft[ci].metrics.length > 1) { editDraft[ci].metrics.splice(mi, 1); renderQList(); } break; }
+      case 'icon-pick': {
+        pendingIconCi = ci;
+        const input = $('#iconFileInput');
+        if (input) input.click();
+        break;
+      }
+      case 'icon-remove': editDraft[ci].routeIcon = ''; renderQList(); break;
       case 'reset':
         if (editLang === 'en') {
           editDraft = JSON.parse(JSON.stringify(activeForm === 'cab' ? DEFAULT_CAB_QUESTIONS : DEFAULT_QUESTIONS));

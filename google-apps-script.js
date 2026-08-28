@@ -75,19 +75,36 @@ function doPost(e) {
   }
 }
 
-/* ---- delad frågekonfiguration (frågor, fordon, översättningar) ----
+/* ---- delad frågekonfiguration (frågor, fordon, översättningar, ikoner) ----
    Lagras i ett eget "Config"-ark så alla enheter som kör appen kan
    läsa samma version, istället för att var och en bara har sin egen
-   lokala kopia i localStorage. ---- */
+   lokala kopia i localStorage. Frågornas körbane-ikoner kan nu vara
+   inbäddade bilder (data-URI), så JSON-strängen kan bli större än en
+   enda cell tillåter (~50 000 tecken) — delas därför upp i bitar över
+   flera celler i kolumn B och sätts ihop igen vid läsning. ---- */
 const CONFIG_SHEET_NAME = 'Config';
+const CONFIG_CHUNK_SIZE = 45000; // säkert under Sheets ~50 000 tecken/cell
 
 function saveConfig(json) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(CONFIG_SHEET_NAME) || ss.insertSheet(CONFIG_SHEET_NAME);
     const updatedAt = new Date().toISOString();
-    sheet.getRange(1, 1, 2, 1).setValues([['updatedAt'], ['json']]);
-    sheet.getRange(1, 2, 2, 1).setValues([[updatedAt], [json]]);
+
+    const chunks = [];
+    for (let i = 0; i < json.length; i += CONFIG_CHUNK_SIZE) chunks.push(json.slice(i, i + CONFIG_CHUNK_SIZE));
+    if (!chunks.length) chunks.push('');
+
+    /* rensa bort ev. fler bitar än vi behöver denna gång */
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 2) sheet.getRange(3, 1, lastRow - 2, 2).clearContent();
+
+    sheet.getRange(1, 1, 2, 2).setValues([
+      ['updatedAt', updatedAt],
+      ['chunks', chunks.length],
+    ]);
+    sheet.getRange(3, 1, chunks.length, 2).setValues(chunks.map((c, i) => ['json' + i, c]));
+
     return ContentService
       .createTextOutput(JSON.stringify({ ok: true, updatedAt }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -103,7 +120,12 @@ function readConfig() {
   const sheet = ss.getSheetByName(CONFIG_SHEET_NAME);
   if (!sheet) return { updatedAt: null, config: null };
   const updatedAt = sheet.getRange(1, 2).getValue();
-  const json = sheet.getRange(2, 2).getValue();
+  const chunkCount = Number(sheet.getRange(2, 2).getValue()) || 0;
+  let json = '';
+  if (chunkCount > 0) {
+    const rows = sheet.getRange(3, 2, chunkCount, 1).getValues();
+    json = rows.map((r) => String(r[0])).join('');
+  }
   let config = null;
   try { config = json ? JSON.parse(json) : null; } catch (e) { config = null; }
   return { updatedAt: updatedAt ? String(updatedAt) : null, config };

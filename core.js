@@ -522,6 +522,7 @@
       id: c.id || slug(c.title),
       title: c.title || 'Untitled category',
       instruction: c.instruction || '',
+      routeIcon: c.routeIcon || '',   // shown on the test-drive question screen; travels with the category, not its position
       metrics: (c.metrics || []).map((m) => ({
         id: m.id || slug(m.label),
         label: m.label || 'Untitled metric',
