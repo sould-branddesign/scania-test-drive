@@ -1400,6 +1400,14 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
   body.test .screen__foot  { margin-top: 12px; }
 }
 
+/* iPad / kiosk-tablet PORTRAIT: the tall aspect ratio leaves a lot of vertical
+   room between the header/stepper and the footer buttons — every question has
+   at most two sliders, so the content block ends up pinned to the top with a
+   large empty gap beneath it. Centre it in the space instead of top-anchoring. */
+@media (min-width: 760px) and (max-width: 1366px) and (orientation: portrait) {
+  body.test .screen__body { justify-content: center; }
+}
+
 /* ============================================================
    TEST PAGE — fullscreen kiosk
    The flow fills the whole screen instead of floating as a card
