@@ -599,6 +599,30 @@
     });
   })();
 
+  /* Service worker + auto-update — kiosk tablets sit open for hours between
+     reopens, so pushing a fix doesn't reach them until something reloads the
+     page. Poll the SW for updates in the background; once a new version has
+     taken over, apply it the next time the app is idle at the intro screen
+     rather than mid-evaluation, so a driver never loses their answers. */
+  (function () {
+    if (!('serviceWorker' in navigator) || !document.body.classList.contains('test')) return;
+    var updateReady = false;
+    function maybeReload() {
+      if (updateReady && document.body.classList.contains('is-intro')) location.reload();
+    }
+    navigator.serviceWorker.register('sw.js').then(function (reg) {
+      setInterval(function () { reg.update().catch(function () {}); }, 5 * 60 * 1000);
+    }).catch(function () {});
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      updateReady = true;
+      maybeReload();
+    });
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') maybeReload();
+    });
+    new MutationObserver(maybeReload).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  })();
+
   window.ScaniaEval = {
     getQuestions: () => JSON.parse(JSON.stringify(state.questions)),
     setQuestions(questions) {
