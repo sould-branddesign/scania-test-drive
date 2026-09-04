@@ -594,19 +594,19 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   color: var(--ink);
   font-family: var(--font);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 15px;
   letter-spacing: .1em;
   text-transform: uppercase;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 24px 24px;
   transition: color .18s ease;
 }
 .linkbtn:hover { color: var(--teal-bright); }
 .linkbtn[disabled] { opacity: .3; cursor: not-allowed; pointer-events: none; }
-.linkbtn .arrow { width: 34px; height: 11px; }
+.linkbtn .arrow { width: 40px; height: 13px; }
 
 /* ---------- option pills (language) ---------- */
 .options { display: flex; flex-direction: column; gap: 13px; align-items: center; margin-top: 180px; }
@@ -1281,7 +1281,7 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
   .slider::-moz-range-thumb { width: 32px; height: 32px; border-width: 4px; }
   .iconbtn { width: 44px; height: 44px; font-size: 17px; }
   .navlink { padding: 12px 15px; }
-  .linkbtn { padding: 12px 4px; min-height: 44px; }
+  .linkbtn { padding: 18px 4px; min-height: 56px; }
 }
 
 /* neutralise hover styles that would "stick" after a tap */
@@ -1366,8 +1366,8 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
 
   /* footer actions */
   .screen__foot { padding-top: 34px; }
-  .linkbtn { font-size: 15px; }
-  .linkbtn .arrow { width: 40px; height: 12px; }
+  .linkbtn { font-size: 18px; }
+  .linkbtn .arrow { width: 48px; height: 15px; }
 
   /* cover */
   .cover {
