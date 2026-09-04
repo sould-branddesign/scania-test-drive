@@ -4,6 +4,7 @@
   "start_url": "cab.html?v=9",
   "scope": ".",
   "display": "standalone",
+  "display_override": ["fullscreen", "standalone"],
   "orientation": "any",
   "background_color": "#02102c",
   "theme_color": "#02102c",
