@@ -843,6 +843,9 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   text-transform: uppercase;
   margin: 0;
 }
+/* Test Drive and Cab Assessment run in different rooms/setups, so their
+   intro titles can be sized independently instead of sharing one value. */
+.form-testdrive .cover__title { font-size: clamp(64px, 14vw, 140px); }
 .cover__cta {
   grid-area: cta;
   margin-top: 0;
@@ -1389,6 +1392,7 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
 /* iPad landscape: let the screen breathe horizontally without getting too tall */
 @media (min-width: 760px) and (max-width: 1366px) and (orientation: landscape) and (max-height: 800px) {
   .cover__title { font-size: 76px; }
+  .form-testdrive .cover__title { font-size: 96px; }
   .screen { padding: 20px clamp(28px,6vw,80px) 20px; --pad-x: clamp(28px,6vw,80px); --pad-top: 20px; }
   .screen__title { font-size: 22px; }
   .screen__label { margin: 16px 0 12px; }
