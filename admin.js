@@ -1058,7 +1058,7 @@
     const ci = catEl ? Number(catEl.dataset.ci) : -1;
     switch (act) {
       case 'add-cat':
-        editDraft.push({ id: slug('category-' + (editDraft.length + 1)) + '-' + (editDraft.length + 1), title: 'New category', instruction: '', metrics: [{ id: slug('metric'), label: 'New metric', min: 'Low', max: 'High', scale: 10 }] });
+        editDraft.push({ id: slug('category-' + (editDraft.length + 1)) + '-' + (editDraft.length + 1), title: 'New category', instruction: '', metrics: [{ id: slug('metric-' + Math.random()), label: 'New metric', min: 'Low', max: 'High', scale: 10 }] });
         renderQList(); break;
       case 'del-cat': if (editDraft.length > 1) { editDraft.splice(ci, 1); renderQList(); } break;
       case 'up': if (ci > 0) { [editDraft[ci - 1], editDraft[ci]] = [editDraft[ci], editDraft[ci - 1]]; renderQList(); } break;

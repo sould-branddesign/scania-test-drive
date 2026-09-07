@@ -15,6 +15,12 @@
   const activeQuestions = () => CAB_MODE ? state.cabQuestions : state.questions;
   const activeVehicles = () => CAB_MODE ? state.cabVehicles : state.vehicles;
 
+  /* computed fresh at submit time rather than read from state.group, which
+     only refreshes when someone happens to open admin's Results tab on this
+     specific device — a kiosk tablet that never does stays stuck on whatever
+     day it first picked up, mislabeling every submission after that. */
+  function todayLabel() { return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
+
   /* local UI state (data lives in STD.state) */
   let ui = { view: 'intro', currentVehicle: null, stepIndex: 0, draft: {}, langChosen: false };
   let noAnim = false;   // true when a re-render is an in-screen update (selection) — skip the fade
@@ -264,7 +270,7 @@
         timestamp: new Date().toISOString(),
         lang: state.lang,
         country: state.country || '',
-        group: state.group || '',
+        group: todayLabel(),
         formId: CAB_MODE ? 'cab' : 'testdrive',
         vehicleId: ui.currentVehicle,
         vehicleName: vehicle ? vehicle.name : ui.currentVehicle,

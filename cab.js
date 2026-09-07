@@ -15,6 +15,12 @@
     return id ? state.cabVehicles.find((v) => v.id === id) || null : null;
   }
 
+  /* computed fresh at submit time rather than read from state.group, which
+     only refreshes when someone happens to open admin's Results tab on this
+     specific device — a kiosk tablet that never does stays stuck on whatever
+     day it first picked up, mislabeling every submission after that. */
+  function todayLabel() { return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
+
   let ui = { view: 'intro', stepIndex: 0, draft: {}, completedCats: new Set() };
   let noAnim = false;
 
@@ -302,7 +308,7 @@
         timestamp: new Date().toISOString(),
         lang: state.lang,
         country: state.country || '',
-        group: state.group || '',
+        group: todayLabel(),
         formId: 'cab',
         vehicleId: vehicle.id,
         vehicleName: vehicle.name,
