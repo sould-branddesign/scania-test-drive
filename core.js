@@ -586,6 +586,26 @@
     }, { passive: true });
   }
 
+  /* Kiosk viewport height — 100dvh is meant to track the real visible
+     viewport, but on some Android browsers it doesn't reliably recompute
+     right after a JS-triggered fullscreen transition (only after a scroll
+     gesture), so the app briefly renders sized for the wrong height —
+     taller than the actual screen, with the outgoing intro's full-page
+     pattern still visible underneath the incoming screen's own pattern
+     until something else forces a relayout. Drive the height from a
+     JS-measured custom property instead, refreshed on every event that can
+     actually change it, so it never depends on the browser getting that
+     recalculation right on its own. */
+  (function () {
+    if (!document.body.classList.contains('test')) return;
+    function setVH() { document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px'); }
+    setVH();
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+    document.addEventListener('fullscreenchange', setVH);
+    document.addEventListener('webkitfullscreenchange', setVH);
+  })();
+
   /* Wake Lock — keep screen on while the app is in the foreground */
   (function () {
     if (!('wakeLock' in navigator)) return;

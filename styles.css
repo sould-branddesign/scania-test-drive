@@ -1421,7 +1421,7 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
    ============================================================ */
 body.test .app {
   padding: 0;
-  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
   overflow: hidden;
   align-items: stretch;
   justify-content: center;
@@ -1430,7 +1430,7 @@ body.test .screen {
   max-width: 820px;
   width: 100%;
   margin: 0 auto;
-  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
   min-height: 0;
   overflow: visible;   /* .app (same fixed height) clips vertically instead — mixing
                           overflow-x:visible with overflow-y:hidden computes to
@@ -1473,7 +1473,7 @@ body.test .cover {
   max-width: none;
   width: 100%;
   margin: 0;
-  min-height: 100dvh;
+  min-height: calc(var(--vh, 1vh) * 100);
   border: none;
   border-radius: 0;
   box-shadow: none;
