@@ -115,9 +115,9 @@
     const bStyle = vehicle ? `--chip:${brand.solid}${brand.solidB ? ';--chip-b:' + brand.solidB : ''}` : '';
     const c = h(`<div class="cover" role="button" tabindex="0">
       ${LOGO}
+      <span class="vehicle-chip cover__chip-mid" data-brand="${vehicle ? vehicle.brand : ''}" style="${bStyle}">${esc(vehicle ? vehicle.name : '')}</span>
       <div class="cover__bottom">
         <div class="cover__eyebrow">Sales Force Boost | 2026</div>
-        <span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${bStyle}">${esc(vehicle ? vehicle.name : '')}</span>
         <h1 class="cover__title">Cab<br>Assessment</h1>
         <span class="cover__cta">${t().tap} ${ARROW_R}</span>
       </div>

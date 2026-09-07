@@ -822,10 +822,14 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   background-repeat: no-repeat;
 }
 .cover > * { position: relative; z-index: 1; }
-.cover__bottom .vehicle-chip { grid-area: chip; justify-self: start; margin-bottom: 20px; }
+/* Cab Assessment's vehicle chip sits as its own flex child between the logo
+   and the text block, not inside either — the auto margins soak up the free
+   space above and below it, centering it in the large empty gap rather than
+   sitting flush against the logo or the text. */
+.cover__chip-mid { align-self: flex-start; margin: auto 0; }
 .cover__bottom {
   display: grid;
-  grid-template-areas: "eyebrow eyebrow" "chip chip" "title cta";
+  grid-template-areas: "eyebrow eyebrow" "title cta";
   grid-template-columns: 1fr auto;
   align-items: end;
   gap: 6px 0;
@@ -833,7 +837,7 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
 /* Cab Assessment's title ("ASSESSMENT") runs much wider than Test Drive's,
    so sharing a row with the cta squeezed it into an awkward 3-line wrap —
    give the cta its own full-width row underneath instead. */
-.form-cab .cover__bottom { grid-template-areas: "chip chip" "eyebrow eyebrow" "title title" "cta cta"; }
+.form-cab .cover__bottom { grid-template-areas: "eyebrow eyebrow" "title title" "cta cta"; }
 .form-cab .cover__cta { justify-self: start; margin-top: 6px; }
 .cover__eyebrow {
   grid-area: eyebrow;
