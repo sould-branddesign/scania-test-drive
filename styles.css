@@ -414,6 +414,10 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   white-space: nowrap;
   position: relative;
 }
+/* Cab Assessment's intro shows its pre-set vehicle as this chip — make it
+   bigger there specifically, not the (unrelated) one in the question-flow
+   header, which stays at its current size. */
+.cover .vehicle-chip { font-size: 20px; height: 46px; padding: 0 26px; }
 .vehicle-chip::before {
   content: '';
   position: absolute;
