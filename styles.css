@@ -822,15 +822,19 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   background-repeat: no-repeat;
 }
 .cover > * { position: relative; z-index: 1; }
-.cover__bottom .vehicle-chip { justify-self: start; }
-.cover__chip-row { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; }
+.cover__bottom .vehicle-chip { grid-area: chip; justify-self: start; margin-bottom: 4px; }
 .cover__bottom {
   display: grid;
-  grid-template-areas: "eyebrow eyebrow" "title cta";
+  grid-template-areas: "eyebrow eyebrow" "chip chip" "title cta";
   grid-template-columns: 1fr auto;
   align-items: end;
   gap: 6px 0;
 }
+/* Cab Assessment's title ("ASSESSMENT") runs much wider than Test Drive's,
+   so sharing a row with the cta squeezed it into an awkward 3-line wrap —
+   give the cta its own full-width row underneath instead. */
+.form-cab .cover__bottom { grid-template-areas: "eyebrow eyebrow" "chip chip" "title title" "cta cta"; }
+.form-cab .cover__cta { justify-self: start; margin-top: 6px; }
 .cover__eyebrow {
   grid-area: eyebrow;
   font-family: 'ScaniaSansHeadline', var(--font);
@@ -1268,7 +1272,7 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
 }
 @media (max-width: 480px) {
   .cover__bottom {
-    grid-template-areas: "eyebrow" "title" "cta";
+    grid-template-areas: "eyebrow" "chip" "title" "cta";
     grid-template-columns: 1fr;
   }
   .cover__cta { align-self: start; margin-top: 18px; }

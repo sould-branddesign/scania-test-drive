@@ -117,11 +117,9 @@
       ${LOGO}
       <div class="cover__bottom">
         <div class="cover__eyebrow">Sales Force Boost | 2026</div>
+        <span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${bStyle}">${esc(vehicle ? vehicle.name : '')}</span>
         <h1 class="cover__title">Cab<br>Assessment</h1>
-        <div class="cover__chip-row">
-          <span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${bStyle}">${esc(vehicle ? vehicle.name : '')}</span>
-          <span class="cover__cta">${t().tap} ${ARROW_R}</span>
-        </div>
+        <span class="cover__cta">${t().tap} ${ARROW_R}</span>
       </div>
     </div>`);
     const start = () => { enterFullscreen(); go('language'); };
