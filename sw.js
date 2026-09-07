@@ -2,7 +2,7 @@
    SCANIA · TEST DRIVE — Service Worker
    Cache-first for assets, network-first for HTML.
    ============================================================ */
-const CACHE = 'scania-td-v34';
+const CACHE = 'scania-td-v35';
 
 const PRECACHE = [
   './',
@@ -46,6 +46,15 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
+
+  /* Never touch cross-origin requests (the Google Sheets sync calls) — the
+     "cache first" branch below would otherwise permanently cache the first
+     successful action=data/action=config response (Apps Script sends
+     Access-Control-Allow-Origin: *, so those GETs aren't opaque and pass the
+     res.ok check) and keep serving that stale snapshot forever, hiding every
+     submission and config change made after that first fetch. Let the page's
+     own fetch() talk to Apps Script directly, uncached. */
+  if (url.origin !== self.location.origin) return;
 
   /* HTML — network first, fall back to cache */
   if (e.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
