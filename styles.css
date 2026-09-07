@@ -1326,7 +1326,13 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
     min-height: calc(100dvh - 64px - env(safe-area-inset-top));
     padding: 30px 28px calc(46px + env(safe-area-inset-bottom));
   }
-  body.test .app { min-height: calc(100dvh - env(safe-area-inset-top)); }   /* no nav to restart */
+  /* no nav to restart. Uses --vh, not 100dvh — .app's own height (below, in
+     the fullscreen kiosk block) is already set from --vh; min-height and
+     height are different properties and don't override one another, so a
+     stale dvh-based min-height here could still force .app taller than the
+     real viewport even after that fix, pushing .cover (centered inside it)
+     down and off the bottom of the screen. */
+  body.test .app { min-height: calc(var(--vh, 1vh) * 100 - env(safe-area-inset-top)); }
   body.test .screen__foot  { margin-top: auto; }
   body.admin .app { align-items: flex-start; }
 
