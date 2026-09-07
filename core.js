@@ -600,10 +600,18 @@
     if (!document.body.classList.contains('test')) return;
     function setVH() { document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px'); }
     setVH();
+    /* The very first read, at parse time, can itself still land mid-settle
+       on a cold app launch — re-check a few times just after, since a
+       stale value here has no later event to correct it. */
+    requestAnimationFrame(setVH);
+    setTimeout(setVH, 300);
+    setTimeout(setVH, 1000);
+    window.addEventListener('load', setVH);
     window.addEventListener('resize', setVH);
     window.addEventListener('orientationchange', setVH);
     document.addEventListener('fullscreenchange', setVH);
     document.addEventListener('webkitfullscreenchange', setVH);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', setVH);
   })();
 
   /* Wake Lock — keep screen on while the app is in the foreground */

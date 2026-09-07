@@ -131,7 +131,10 @@ html, body {
 }
 
 body { padding-top: calc(64px + env(safe-area-inset-top)); }
-body.test { padding-top: env(safe-area-inset-top); }   /* test page has no top nav */
+/* test page has no top nav; also a safety net against document-level scroll
+   if --vh (see core.js) is ever briefly off — the kiosk flow is a fixed
+   single viewport and should never be scrollable regardless. */
+body.test { padding-top: env(safe-area-inset-top); overflow: hidden; }
 body.is-intro .bg-hex { animation: hex-pulse 20s ease-in-out infinite; }
 body.is-intro .bg-glow {
   animation: glow-orb1 40s ease-in-out infinite, glow-orb2 28s ease-in-out infinite, glow-orb3 52s ease-in-out infinite;
