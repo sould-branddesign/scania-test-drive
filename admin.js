@@ -129,6 +129,9 @@
   function viewResults() {
     const wrap = h('<div class="results"></div>');
     wrap.appendChild(formSwitcher());
+    if (window.STDSheets && window.STDSheets.getUrl()) {
+      wrap.appendChild(h('<div class="conn-test-row"><button class="btn secondary" data-act="sheets-test">Test connection</button></div>'));
+    }
     const evald = evaluatedVehicles();
 
     if (activeForm === 'cab') {
@@ -210,6 +213,7 @@
         applyFilter(); render(); return;
       }
       const a = e.target.closest('[data-act]'); if (!a) return;
+      if (a.dataset.act === 'sheets-test') { testConnection(); }
       if (a.dataset.act === 'sheets-load') { loadFromSheets(); }
       if (a.dataset.act === 'clear') { submissions = submissions.filter((s) => (s.formId || 'testdrive') !== (activeForm === 'cab' ? 'cab' : 'testdrive')); filterGroup = ''; filterMarkets.clear(); state.answers = {}; if (activeForm !== 'cab') { state.vehicles = []; save(); } render(); toast('Data cleared'); }
       if (a.dataset.act === 'present') openDeck();
@@ -834,7 +838,6 @@
           ? '<button class="btn secondary" data-act="sheets-unlock">🔒 Unlock to edit</button>'
           : '<button class="btn" data-act="sheets-save">Save URL</button>'}
         ${queueLen ? `<button class="btn secondary" data-act="sheets-flush">Sync now (${queueLen} pending)</button>` : ''}
-        ${sheetsUrl ? '<button class="btn secondary" data-act="sheets-test">Test connection</button>' : ''}
       </div>
       ${sheetsUrl ? '<p class="sheets-cfg__status" id="sheetsCfgStatus"></p>' : ''}
     `;
@@ -1175,7 +1178,6 @@
         }
         break;
       }
-      case 'sheets-test': testConnection(); break;
     }
   }
 
