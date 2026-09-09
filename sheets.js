@@ -62,23 +62,32 @@
   /* Lightweight, read-only connectivity check for admin's "Test connection"
      button — hits the bare deployment URL (no action param), which doGet
      answers with {ok:true, service:...} regardless of what's in the sheet.
-     Doesn't write anything, so it's safe to run at any time. Aborts after
-     timeoutMs rather than hanging indefinitely on a dead network. */
-  async function ping(timeoutMs = 8000) {
+     Doesn't write anything, so it's safe to run at any time.
+
+     Races the fetch against a timeout instead of aborting it — an
+     AbortController tied to this specific cross-origin redirect (Apps
+     Script's 302 to script.googleusercontent.com) was observed to hang
+     indefinitely in testing even though the same fetch without a signal
+     completed fine, so the "give up after N seconds" behavior here just
+     stops waiting rather than cancelling the request. The real fetch is
+     left to finish in the background, harmlessly, if it's just slow —
+     Apps Script can take several seconds to wake up if this deployment
+     hasn't been hit in a while, so the timeout is generous. */
+  async function ping(timeoutMs = 15000) {
     const url = getUrl();
     if (!url) return { ok: false, reason: 'no-url' };
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
-      if (!res.ok) return { ok: false, reason: 'bad-status' };
-      const data = await res.json();
-      return data && data.ok ? { ok: true } : { ok: false, reason: 'bad-response' };
-    } catch (e) {
-      return { ok: false, reason: e.name === 'AbortError' ? 'timeout' : 'network' };
-    } finally {
-      clearTimeout(timer);
-    }
+    const attempt = (async () => {
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return { ok: false, reason: 'bad-status' };
+        const data = await res.json();
+        return data && data.ok ? { ok: true } : { ok: false, reason: 'bad-response' };
+      } catch {
+        return { ok: false, reason: 'network' };
+      }
+    })();
+    const timeout = new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: 'timeout' }), timeoutMs));
+    return Promise.race([attempt, timeout]);
   }
 
   /* Fetch all submitted evaluations from Sheets (for Results view + reconciliation) */

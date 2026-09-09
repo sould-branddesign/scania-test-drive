@@ -128,10 +128,12 @@
      ============================================================ */
   function viewResults() {
     const wrap = h('<div class="results"></div>');
-    wrap.appendChild(formSwitcher());
+    const topRow = h('<div class="conn-test-row"></div>');
+    topRow.appendChild(formSwitcher());
     if (window.STDSheets && window.STDSheets.getUrl()) {
-      wrap.appendChild(h('<div class="conn-test-row"><button class="btn secondary" data-act="sheets-test">Test connection</button></div>'));
+      topRow.appendChild(h('<button class="btn secondary" data-act="sheets-test">Test connection</button>'));
     }
+    wrap.appendChild(topRow);
     const evald = evaluatedVehicles();
 
     if (activeForm === 'cab') {
@@ -870,7 +872,7 @@
   function testConnFailMessage(reason) {
     switch (reason) {
       case 'no-url': return 'No webhook URL is set — add one above first.';
-      case 'timeout': return "No response after 8 seconds — check this device's internet connection.";
+      case 'timeout': return "No response after 15 seconds — check this device's internet connection.";
       case 'bad-status':
       case 'bad-response': return "Got a response, but not the one expected — double-check it's the right Apps Script deployment.";
       default: return "Could not reach the server — check this device's internet connection.";
@@ -890,10 +892,18 @@
     document.body.appendChild(overlay);
     box.querySelector('.btn-cancel').onclick = () => overlay.remove();
 
+    /* reassure rather than let it look frozen — Apps Script can take a
+       few seconds to wake up if it hasn't been hit in a while */
+    const patienceTimer = setTimeout(() => {
+      const msg = box.querySelector('#testconnMsg');
+      if (msg) msg.textContent = 'Still checking — this can take a bit longer if the connection has been idle.';
+    }, 4000);
+
     const started = Date.now();
     const MIN_VISIBLE_MS = 600;   // avoid an instant flash if the network answers immediately
     (window.STDSheets ? window.STDSheets.ping() : Promise.resolve({ ok: false, reason: 'no-url' }))
       .then((result) => {
+        clearTimeout(patienceTimer);
         const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - started));
         setTimeout(() => {
           if (!overlay.isConnected) return;   // closed before the check finished
