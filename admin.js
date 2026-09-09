@@ -834,6 +834,7 @@
           ? '<button class="btn secondary" data-act="sheets-unlock">🔒 Unlock to edit</button>'
           : '<button class="btn" data-act="sheets-save">Save URL</button>'}
         ${queueLen ? `<button class="btn secondary" data-act="sheets-flush">Sync now (${queueLen} pending)</button>` : ''}
+        ${sheetsUrl ? '<button class="btn secondary" data-act="sheets-test">Test connection</button>' : ''}
       </div>
       ${sheetsUrl ? '<p class="sheets-cfg__status" id="sheetsCfgStatus"></p>' : ''}
     `;
@@ -857,6 +858,58 @@
     document.body.appendChild(overlay);
     box.querySelector('.btn-cancel').onclick = () => overlay.remove();
     box.querySelector('.btn-confirm').onclick = () => { overlay.remove(); onConfirm(); };
+  }
+
+  /* "Test connection" — lets staff on site check the webhook is actually
+     reachable and live before an event, without needing to open Sheets or
+     submit a real evaluation. Read-only (see STDSheets.ping), so nothing is
+     written anywhere by running it. */
+  function testConnFailMessage(reason) {
+    switch (reason) {
+      case 'no-url': return 'No webhook URL is set — add one above first.';
+      case 'timeout': return "No response after 8 seconds — check this device's internet connection.";
+      case 'bad-status':
+      case 'bad-response': return "Got a response, but not the one expected — double-check it's the right Apps Script deployment.";
+      default: return "Could not reach the server — check this device's internet connection.";
+    }
+  }
+  function testConnection() {
+    const overlay = h('<div class="confirm-overlay"></div>');
+    const box = h(`<div class="confirm-box testconn-box">
+      <div class="testconn-icon testconn-icon--spin"></div>
+      <p class="confirm-box__title" id="testconnTitle">Testing connection…</p>
+      <p class="confirm-box__msg" id="testconnMsg">Checking that this device can reach Google Sheets.</p>
+      <div class="confirm-box__btns">
+        <button class="btn-cancel">Close</button>
+      </div>
+    </div>`);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    box.querySelector('.btn-cancel').onclick = () => overlay.remove();
+
+    const started = Date.now();
+    const MIN_VISIBLE_MS = 600;   // avoid an instant flash if the network answers immediately
+    (window.STDSheets ? window.STDSheets.ping() : Promise.resolve({ ok: false, reason: 'no-url' }))
+      .then((result) => {
+        const wait = Math.max(0, MIN_VISIBLE_MS - (Date.now() - started));
+        setTimeout(() => {
+          if (!overlay.isConnected) return;   // closed before the check finished
+          const icon = box.querySelector('.testconn-icon');
+          const title = box.querySelector('#testconnTitle');
+          const msg = box.querySelector('#testconnMsg');
+          if (result.ok) {
+            icon.className = 'testconn-icon testconn-icon--ok';
+            icon.textContent = '✓';
+            title.textContent = 'Connected';
+            msg.textContent = 'This device can reach Google Sheets — everything is live.';
+          } else {
+            icon.className = 'testconn-icon testconn-icon--fail';
+            icon.textContent = '✕';
+            title.textContent = 'Not connected';
+            msg.textContent = testConnFailMessage(result.reason);
+          }
+        }, wait);
+      });
   }
 
   function viewEditor() {
@@ -1122,6 +1175,7 @@
         }
         break;
       }
+      case 'sheets-test': testConnection(); break;
     }
   }
 

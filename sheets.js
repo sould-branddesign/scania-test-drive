@@ -59,6 +59,28 @@
     return { headers, row, sheetName, raw: { timestamp, group: group || '', country: country || '', formId: formId || 'testdrive', vehicleId, vehicleName, vehicleBrand, answers } };
   }
 
+  /* Lightweight, read-only connectivity check for admin's "Test connection"
+     button — hits the bare deployment URL (no action param), which doGet
+     answers with {ok:true, service:...} regardless of what's in the sheet.
+     Doesn't write anything, so it's safe to run at any time. Aborts after
+     timeoutMs rather than hanging indefinitely on a dead network. */
+  async function ping(timeoutMs = 8000) {
+    const url = getUrl();
+    if (!url) return { ok: false, reason: 'no-url' };
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+      if (!res.ok) return { ok: false, reason: 'bad-status' };
+      const data = await res.json();
+      return data && data.ok ? { ok: true } : { ok: false, reason: 'bad-response' };
+    } catch (e) {
+      return { ok: false, reason: e.name === 'AbortError' ? 'timeout' : 'network' };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   /* Fetch all submitted evaluations from Sheets (for Results view + reconciliation) */
   async function fetchAll() {
     const url = getUrl();
@@ -246,7 +268,7 @@
   syncConfig();
 
   window.STDSheets = {
-    submit, getUrl, setUrl, fetchAll,
+    submit, getUrl, setUrl, fetchAll, ping,
     flushQueue: reconcile,     // kept for admin.js
     loadQueue: loadPending,    // kept for admin.js's "N pending" display
     pushConfig, pullConfig, syncConfig,

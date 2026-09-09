@@ -551,6 +551,31 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
 }
 .confirm-box__btns .btn-confirm:hover { opacity: .85; }
 
+/* "Test connection" (admin Sheets sync) — spinner morphs into a check or cross */
+.testconn-box .confirm-box__btns { justify-content: center; }
+.testconn-box .btn-cancel { flex: 0 0 auto; padding-left: 32px; padding-right: 32px; }
+.testconn-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 900;
+  color: #fff;
+  box-sizing: border-box;
+}
+.testconn-icon--spin {
+  border: 4px solid rgba(255, 255, 255, .15);
+  border-top-color: var(--teal);
+  animation: testconn-spin .8s linear infinite;
+}
+.testconn-icon--ok { background: rgba(46, 204, 113, .15); border: 2px solid #2ecc71; color: #2ecc71; }
+.testconn-icon--fail { background: rgba(255, 90, 90, .15); border: 2px solid #ff5a5a; color: #ff5a5a; }
+@keyframes testconn-spin { to { transform: rotate(360deg); } }
+
 /* ---------- language/country selects ---------- */
 .lang-select-wrap {
   margin-top: 120px;
