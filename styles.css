@@ -1460,6 +1460,13 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
    centred against, from the bottom only, pulling the centred content upward). */
 @media (min-width: 760px) and (max-width: 1366px) and (orientation: portrait) {
   body.test .screen__body { justify-content: center; padding-bottom: 16vh; }
+  /* Question screens: centering the whole block (icon + title + sliders) as
+     a unit means its top edge shifts depending on how many sliders that
+     question has — pin the title to a fixed distance from the top instead,
+     so it's the same on every question regardless of content length. The
+     sliders below just follow their own normal spacing under it. */
+  body.test .screen__body:has(> .question-head) { justify-content: flex-start; padding-bottom: 0; }
+  body.test .screen__body .question-head { margin-top: 15vh; }
 }
 
 /* ============================================================
