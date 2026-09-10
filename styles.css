@@ -440,7 +440,7 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   text-transform: uppercase;
   margin: 0;
 }
-.question-icon { display: block; width: 112px; height: 112px; object-fit: contain; opacity: 1; margin-bottom: 20px; }
+.question-icon { display: block; box-sizing: border-box; width: 112px; height: 112px; object-fit: contain; opacity: 1; margin-bottom: 20px; background: var(--navy-800); border-radius: 10px; padding: 14px; }
 .route-icon { display: block; box-sizing: border-box; width: auto; max-width: 100%; height: clamp(130px, 22vh, 290px); object-fit: contain; opacity: 1; margin: 0 auto 12px; background: var(--navy-800); border-radius: 10px; padding: 14px; }
 .question-head { display: flex; align-items: stretch; gap: 28px; margin-top: clamp(24px, 5vh, 44px); }
 .question-head--cab { gap: clamp(24px, 5vh, 44px); }
