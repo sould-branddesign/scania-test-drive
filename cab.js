@@ -186,10 +186,10 @@
 
   /* ---------- category hub ---------- */
   const CAT_ICONS = {
-    boarding: 'assets/icons/boarding-exiting.svg?v=2',
-    ergonomics: 'assets/icons/ergonomics-reachability.svg?v=5',
-    fit_finish: 'assets/icons/fit-finish.svg?v=6',
-    safety: 'assets/icons/safety-visibility.svg?v=5',
+    boarding: 'assets/icons/boarding-exiting.svg?v=3',
+    ergonomics: 'assets/icons/ergonomics-reachability.svg?v=6',
+    fit_finish: 'assets/icons/fit-finish.svg?v=7',
+    safety: 'assets/icons/safety-visibility.svg?v=6',
   };
 
   function viewHub() {

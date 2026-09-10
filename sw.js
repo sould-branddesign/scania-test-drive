@@ -2,7 +2,7 @@
    SCANIA · TEST DRIVE — Service Worker
    Cache-first for assets, network-first for HTML.
    ============================================================ */
-const CACHE = 'scania-td-v51';
+const CACHE = 'scania-td-v52';
 
 const PRECACHE = [
   './',
@@ -12,7 +12,7 @@ const PRECACHE = [
   'styles.css?v=209',
   'core.js?v=48',
   'test.js?v=47',
-  'cab.js?v=63',
+  'cab.js?v=64',
   'sheets.js?v=14',
   'assets/scania-logo.svg',
   'assets/pattern.svg',
@@ -22,6 +22,15 @@ const PRECACHE = [
   'assets/icon-512.png',
   'assets/icon-192-maskable.png',
   'assets/icon-512-maskable.png',
+  /* Cab Assessment's category-hub icons — precached explicitly (unlike
+     before) so they're fetched once, up front, at install time — likely on
+     a stable network — instead of opportunistically whenever someone first
+     reaches that screen, where a bad network moment on show-floor wifi
+     could leave a broken copy cached until the next full cache reset. */
+  'assets/icons/boarding-exiting.svg?v=3',
+  'assets/icons/ergonomics-reachability.svg?v=6',
+  'assets/icons/fit-finish.svg?v=7',
+  'assets/icons/safety-visibility.svg?v=6',
   'manifest.json',
   'manifest-cab.json',
   'assets/ScaniaSans-Regular.woff2',
