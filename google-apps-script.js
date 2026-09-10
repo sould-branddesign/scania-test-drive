@@ -22,7 +22,7 @@
  * misslyckas (t.ex. fel ID, indraget delning) påverkas inte det vanliga
  * inskicket — appen ser fortfarande ett lyckat resultat.
  */
-const BACKUP_SHEET_ID = ''; // t.ex. '1AbC-defGHijklmnoPQRstuVWxyz0123456789abcdefg'
+const BACKUP_SHEET_ID = '1nT1nk6i64WLbdtWQ5tBOoysdj3pAHGQJ4uix6V8W7y0';
 
 /* ---- doPost: ta emot en inskickad utvärdering, eller en delad frågekonfiguration ---- */
 function doPost(e) {
