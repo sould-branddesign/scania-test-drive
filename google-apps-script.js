@@ -12,7 +12,17 @@
  *
  * OBS: när du uppdaterar koden måste du göra en ny distribution
  * (Distribuera → Hantera distributioner → redigera → ny version).
+ *
+ * BACKUP: varje inskickat svar speglas även till ett andra kalkylark om
+ * BACKUP_SHEET_ID nedan är ifyllt — klistra in ID:t från backup-arkets
+ * webbadress (…/spreadsheets/d/DEN HÄR DELEN/edit). Kontot som kör
+ * distributionen ("Kör som: Mig") måste ha redigeringsåtkomst till det
+ * arket. Lämna tomt för att inte spegla alls. Detta gäller bara faktiska
+ * inskickade svar — inte frågekonfigurationen (saveConfig). Om spegling
+ * misslyckas (t.ex. fel ID, indraget delning) påverkas inte det vanliga
+ * inskicket — appen ser fortfarande ett lyckat resultat.
  */
+const BACKUP_SHEET_ID = ''; // t.ex. '1AbC-defGHijklmnoPQRstuVWxyz0123456789abcdefg'
 
 /* ---- doPost: ta emot en inskickad utvärdering, eller en delad frågekonfiguration ---- */
 function doPost(e) {
@@ -24,44 +34,15 @@ function doPost(e) {
     const row     = data.row       || [];
     const raw     = data.raw       || null;
     const sheetName = data.sheetName || 'Test Drive';
-    const rawSheetName = 'Raw — ' + sheetName;
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    writeSubmission(SpreadsheetApp.getActiveSpreadsheet(), sheetName, headers, row, raw);
 
-    /* 1. Skriv läsbar rad till rätt ark (Test Drive / Cab Assessment) */
-    let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
-
-    const lastCol = sheet.getLastColumn();
-    const lastRow = sheet.getLastRow();
-    let existingHeaders = (lastRow >= 1 && lastCol >= 1)
-      ? sheet.getRange(1, 1, 1, lastCol).getValues()[0]
-      : [];
-
-    headers.forEach((h) => {
-      if (!existingHeaders.includes(h)) {
-        existingHeaders.push(h);
-        const col = existingHeaders.length;
-        const cell = sheet.getRange(1, col);
-        cell.setValue(h).setFontWeight('bold').setBackground('#02102c').setFontColor('#ffffff');
+    if (BACKUP_SHEET_ID) {
+      try {
+        writeSubmission(SpreadsheetApp.openById(BACKUP_SHEET_ID), sheetName, headers, row, raw);
+      } catch (backupErr) {
+        Logger.log('Backup write failed: ' + backupErr.message);
       }
-    });
-    sheet.setFrozenRows(1);
-
-    const dataRow = existingHeaders.map((h) => {
-      const idx = headers.indexOf(h);
-      return idx >= 0 ? row[idx] : '';
-    });
-    sheet.appendRow(dataRow);
-
-    /* 2. Spara rådata som JSON i separat Raw-ark per formulär */
-    if (raw) {
-      let rawSheet = ss.getSheetByName(rawSheetName);
-      if (!rawSheet) {
-        rawSheet = ss.insertSheet(rawSheetName);
-        rawSheet.getRange(1, 1).setValue('JSON').setFontWeight('bold');
-        rawSheet.setFrozenRows(1);
-      }
-      rawSheet.appendRow([JSON.stringify(raw)]);
     }
 
     return ContentService
@@ -72,6 +53,48 @@ function doPost(e) {
     return ContentService
       .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/* Skriv en inskickad utvärdering (läsbar rad + rådata-JSON) till ett givet
+   kalkylark — används för både huvudarket och, om konfigurerat, backupen. */
+function writeSubmission(ss, sheetName, headers, row, raw) {
+  const rawSheetName = 'Raw — ' + sheetName;
+
+  /* 1. Skriv läsbar rad till rätt ark (Test Drive / Cab Assessment) */
+  let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+
+  const lastCol = sheet.getLastColumn();
+  const lastRow = sheet.getLastRow();
+  let existingHeaders = (lastRow >= 1 && lastCol >= 1)
+    ? sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+    : [];
+
+  headers.forEach((h) => {
+    if (!existingHeaders.includes(h)) {
+      existingHeaders.push(h);
+      const col = existingHeaders.length;
+      const cell = sheet.getRange(1, col);
+      cell.setValue(h).setFontWeight('bold').setBackground('#02102c').setFontColor('#ffffff');
+    }
+  });
+  sheet.setFrozenRows(1);
+
+  const dataRow = existingHeaders.map((h) => {
+    const idx = headers.indexOf(h);
+    return idx >= 0 ? row[idx] : '';
+  });
+  sheet.appendRow(dataRow);
+
+  /* 2. Spara rådata som JSON i separat Raw-ark per formulär */
+  if (raw) {
+    let rawSheet = ss.getSheetByName(rawSheetName);
+    if (!rawSheet) {
+      rawSheet = ss.insertSheet(rawSheetName);
+      rawSheet.getRange(1, 1).setValue('JSON').setFontWeight('bold');
+      rawSheet.setFrozenRows(1);
+    }
+    rawSheet.appendRow([JSON.stringify(raw)]);
   }
 }
 
