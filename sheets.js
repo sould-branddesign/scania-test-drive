@@ -20,6 +20,12 @@
   const CONFIG_PENDING_KEY = 'scania_config_pending_v1';   // { at, json } — our own unconfirmed config push, if any
   const CONFIG_APPLIED_KEY = 'scania_config_applied_at_v1'; // updatedAt of the remote config this device currently has applied
   const DEFAULT_URL  = 'https://script.google.com/macros/s/AKfycbzsdw59lQK78KnXcqRZZbon-JH0ZoJqrGvLfdtVI6RLl7zzBtnxU9AUBsOp56B9Vlgu/exec';
+  /* Must match WEBHOOK_KEY in google-apps-script.js — sent with every write
+     so a leaked/guessed webhook URL alone can't be used to post data
+     directly, bypassing the app. Not a real secret (it ships in this file,
+     readable by anyone), just a bot/opportunist filter — see the doc's
+     "Säkerhet" section for the full reasoning. */
+  const WEBHOOK_KEY  = '89a632a3709ca303a0e36357db893769a525ed04';
 
   const RECONCILE_GRACE_MS = 20000;      // let Sheets catch up before treating a submission as missing
   const RECONCILE_INTERVAL_MS = 120000;  // periodic safety-net check while the kiosk sits idle
@@ -114,6 +120,7 @@
        but URLSearchParams survives it intact. */
     const form = new URLSearchParams();
     form.append('data', JSON.stringify(payload));
+    form.append('key', WEBHOOK_KEY);
     await fetch(url, {
       method: 'POST',
       mode: 'no-cors',
@@ -201,9 +208,27 @@
     }
   }
 
-  async function postConfig(url, json) {
+  /* Ask the backend, right now, whether `key` matches ADMIN_PASSWORD — a
+     plain GET, not one of the blind no-cors POSTs, so the admin panel gets
+     an immediate, reliable yes/no before it ever tries to save. */
+  async function verifyAdminKey(key) {
+    const url = getUrl();
+    if (!url || !key) return false;
+    try {
+      const res = await fetch(url + '?action=checkAdmin&key=' + encodeURIComponent(key), { cache: 'no-store' });
+      if (!res.ok) return false;
+      const data = await res.json();
+      return !!(data && data.ok);
+    } catch {
+      return false;
+    }
+  }
+
+  async function postConfig(url, json, adminKey) {
     const form = new URLSearchParams();
     form.append('config', json);
+    form.append('key', WEBHOOK_KEY);
+    form.append('adminKey', adminKey || '');
     await fetch(url, { method: 'POST', mode: 'no-cors', body: form });
   }
 
@@ -212,14 +237,18 @@
      module comment up top — so it's kept as a pending push until
      confirmed too. Only the latest edit matters here (unlike
      evaluations, there's nothing to lose by superseding an earlier
-     unconfirmed push), so this holds one pending item, not a list. */
-  async function pushConfig(configObj) {
+     unconfirmed push), so this holds one pending item, not a list.
+
+     adminKey must already be verified (see verifyAdminKey) before this is
+     called — an unverified/wrong key would otherwise just retry forever,
+     silently, since the no-cors POST can't report the rejection back. */
+  async function pushConfig(configObj, adminKey) {
     const url = getUrl();
     if (!url) return { status: 'no-url' };
     const json = JSON.stringify(configObj);
-    saveConfigPending({ at: Date.now(), json });
+    saveConfigPending({ at: Date.now(), json, adminKey });
     try {
-      await postConfig(url, json);
+      await postConfig(url, json, adminKey);
     } catch {
       /* offline — stays pending, syncConfig() retries it later */
     }
@@ -252,8 +281,8 @@
             saveConfigPending(null);   // confirmed — landed as-is
             if (remote.updatedAt) localStorage.setItem(CONFIG_APPLIED_KEY, remote.updatedAt);
           } else {
-            try { await postConfig(url, pendingPush.json); } catch { /* still offline */ }
-            saveConfigPending({ at: Date.now(), json: pendingPush.json });   // reset the grace clock
+            try { await postConfig(url, pendingPush.json, pendingPush.adminKey); } catch { /* still offline */ }
+            saveConfigPending({ at: Date.now(), json: pendingPush.json, adminKey: pendingPush.adminKey });   // reset the grace clock
           }
         }
         return;   // either way, don't also apply a stale remote below this round
@@ -280,6 +309,6 @@
     submit, getUrl, setUrl, fetchAll, ping,
     flushQueue: reconcile,     // kept for admin.js
     loadQueue: loadPending,    // kept for admin.js's "N pending" display
-    pushConfig, pullConfig, syncConfig,
+    pushConfig, pullConfig, syncConfig, verifyAdminKey,
   };
 })();

@@ -21,12 +21,56 @@
  * inskickade svar — inte frågekonfigurationen (saveConfig). Om spegling
  * misslyckas (t.ex. fel ID, indraget delning) påverkas inte det vanliga
  * inskicket — appen ser fortfarande ett lyckat resultat.
+ *
+ * ÅTKOMST: två separata hemligheter, ingen av dem hemlig i egentlig
+ * mening (allt som skickas från en webbläsare går att läsa av), men båda
+ * höjer ribban rejält jämfört med en helt öppen webhook:
+ *   - WEBHOOK_KEY måste följa med varje skrivande anrop (både inskickade
+ *     svar och frågekonfiguration). Ligger inbäddad i appens egen källkod
+ *     (sheets.js) — stoppar någon som bara har eller gissar sig till
+ *     webhook-adressen och försöker skicka data direkt dit, förbi appen.
+ *   - ADMIN_PASSWORD krävs därutöver för att spara frågekonfiguration
+ *     specifikt. Skrivs in av personal i adminpanelen, ligger ALDRIG i
+ *     någon fil i repot — byt det direkt nedan innan första
+ *     distributionen, och dela det bara muntligt/i en lösenordshanterare.
+ * Ändra båda värdena nedan och gör en ny distribution för att byta dem.
  */
+const WEBHOOK_KEY = '89a632a3709ca303a0e36357db893769a525ed04';
+const ADMIN_PASSWORD = 'Thdc0BzVMV297BqF';
+
 const BACKUP_SHEET_ID = '1nT1nk6i64WLbdtWQ5tBOoysdj3pAHGQJ4uix6V8W7y0';
+
+const RATE_LIMIT_MAX = 60;          // max accepterade skrivningar per rullande fönster
+const RATE_LIMIT_WINDOW_SEC = 60;
+
+function unauthorized(reason) {
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: false, error: reason }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* Enkel hastighetsbegränsning via Apps Scripts inbyggda cache — räknar
+   skrivande anrop i rullande minutfönster, delat över alla enheter. Skyddar
+   mot ett skript som spammar in falska svar snabbt, inte mot enstaka
+   missbruk (det stoppar WEBHOOK_KEY/ADMIN_PASSWORD ovan). */
+function checkRateLimit() {
+  const cache = CacheService.getScriptCache();
+  const bucket = 'reqcount_' + Math.floor(Date.now() / (RATE_LIMIT_WINDOW_SEC * 1000));
+  const current = Number(cache.get(bucket)) || 0;
+  if (current >= RATE_LIMIT_MAX) return false;
+  cache.put(bucket, String(current + 1), RATE_LIMIT_WINDOW_SEC + 5);
+  return true;
+}
 
 /* ---- doPost: ta emot en inskickad utvärdering, eller en delad frågekonfiguration ---- */
 function doPost(e) {
-  if (e.parameter.config) return saveConfig(e.parameter.config);
+  if (!e || !e.parameter || e.parameter.key !== WEBHOOK_KEY) return unauthorized('unauthorized');
+  if (!checkRateLimit()) return unauthorized('rate-limited');
+
+  if (e.parameter.config) {
+    if (e.parameter.adminKey !== ADMIN_PASSWORD) return unauthorized('unauthorized-admin');
+    return saveConfig(e.parameter.config);
+  }
 
   try {
     const data    = JSON.parse(e.parameter.data);
@@ -157,6 +201,18 @@ function readConfig() {
 /* ---- doGet: returnera all rådata (och den delade konfigurationen) till admin-sidan/enheterna ---- */
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
+
+  /* Lets the admin panel verify a password immediately (a real GET
+     round-trip, not the blind no-cors POSTs used for writes) before
+     attempting to save — rate-limited so it can't be used to brute-force
+     ADMIN_PASSWORD by guessing. */
+  if (action === 'checkAdmin') {
+    if (!checkRateLimit()) return unauthorized('rate-limited');
+    const ok = !!(e && e.parameter && e.parameter.key === ADMIN_PASSWORD);
+    return ContentService
+      .createTextOutput(JSON.stringify({ ok }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
 
   if (action === 'config') {
     try {

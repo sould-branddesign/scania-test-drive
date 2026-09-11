@@ -757,6 +757,10 @@
   let translationDraft = null;
   let sheetsUnlocked = false; // Sheets webhook URL is read-only until explicitly unlocked — see sheetsCfgHtml()
   let pendingIconCi = -1;     // which editDraft category the hidden file input's next change event is for
+  /* Verified admin password for saving question/vehicle config — kept only
+     for this browser tab's session (sessionStorage), never in the app's own
+     source. See ensureAdminKey() below. */
+  let adminKey = sessionStorage.getItem('scania_admin_key') || '';
 
   const ROUTE_ICON_MAX_DIM = 900;      // px — plenty for the ~230x290 display box even at retina
   const ROUTE_ICON_WARN_BYTES = 300000; // ~300KB data URI — still fine, but nudge toward SVG/smaller art
@@ -863,6 +867,69 @@
     document.body.appendChild(overlay);
     box.querySelector('.btn-cancel').onclick = () => overlay.remove();
     box.querySelector('.btn-confirm').onclick = () => { overlay.remove(); onConfirm(); };
+  }
+
+  /* Saving question/vehicle config is the one admin action that actually
+     writes to the shared backend (see google-apps-script.js ADMIN_PASSWORD),
+     so it's gated on a password verified with a real round-trip before the
+     save is attempted — the save itself goes out as a blind no-cors POST
+     that can't report a rejection back, so entering the wrong password
+     there would otherwise just retry forever, silently. Resolves true once
+     a verified key is ready to use, false if the user cancelled. */
+  async function ensureAdminKey() {
+    if (adminKey) {
+      const stillValid = await window.STDSheets.verifyAdminKey(adminKey);
+      if (stillValid) return true;
+      adminKey = '';
+      sessionStorage.removeItem('scania_admin_key');
+    }
+    return promptForAdminKey();
+  }
+
+  function promptForAdminKey() {
+    return new Promise((resolve) => {
+      const overlay = h('<div class="confirm-overlay"></div>');
+      const box = h(`<div class="confirm-box">
+        <p class="confirm-box__title">Admin password</p>
+        <p class="confirm-box__msg">Required to save changes so they sync out to every device.</p>
+        <input type="password" class="sheets-cfg__input" id="adminKeyInput" style="width:100%;margin-bottom:6px" placeholder="Password" autocomplete="off" />
+        <p class="confirm-box__msg" id="adminKeyError" style="display:none;color:#ff5a5a">Wrong password.</p>
+        <div class="confirm-box__btns">
+          <button class="btn-cancel">Cancel</button>
+          <button class="btn-confirm">Confirm</button>
+        </div>
+      </div>`);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      const input = box.querySelector('#adminKeyInput');
+      const errEl = box.querySelector('#adminKeyError');
+      const confirmBtn = box.querySelector('.btn-confirm');
+      input.focus();
+
+      const attempt = async () => {
+        const val = input.value.trim();
+        if (!val) return;
+        errEl.style.display = 'none';
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Checking…';
+        const ok = await window.STDSheets.verifyAdminKey(val);
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirm';
+        if (ok) {
+          adminKey = val;
+          sessionStorage.setItem('scania_admin_key', val);
+          overlay.remove();
+          resolve(true);
+        } else {
+          errEl.style.display = 'block';
+          input.select();
+        }
+      };
+
+      box.querySelector('.btn-cancel').onclick = () => { overlay.remove(); resolve(false); };
+      confirmBtn.onclick = attempt;
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') attempt(); });
+    });
   }
 
   /* "Test connection" — lets staff on site check the webhook is actually
@@ -1117,7 +1184,7 @@
     }
   }
 
-  function editorClick(e) {
+  async function editorClick(e) {
     const btn = e.target.closest('[data-act]'); if (!btn) return;
     const act = btn.dataset.act;
     const catEl = btn.closest('[data-ci]');
@@ -1152,7 +1219,7 @@
         }
         renderQList(); break;
       case 'cancel': go('results'); break;
-      case 'save':
+      case 'save': {
         if (editLang === 'en') {
           if (activeForm === 'cab') { state.cabQuestions = editDraft.map(normaliseCategory); save(); }
           else { window.ScaniaEval.setQuestions(editDraft); }
@@ -1162,8 +1229,13 @@
           save();
           toast('Translations saved for ' + ((LANGS.find((l) => l.code === editLang) || {}).label || editLang));
         }
-        if (window.STDSheets) window.STDSheets.pushConfig(window.STD.getConfigBundle());
+        if (window.STDSheets) {
+          const ready = await ensureAdminKey();
+          if (ready) window.STDSheets.pushConfig(window.STD.getConfigBundle(), adminKey);
+          else toast('Saved on this device only — enter the admin password to sync it to the others');
+        }
         break;
+      }
       case 'sheets-unlock':
         confirmUnlockSheetsUrl(() => {
           sheetsUnlocked = true;
