@@ -890,10 +890,10 @@
     return new Promise((resolve) => {
       const overlay = h('<div class="confirm-overlay"></div>');
       const box = h(`<div class="confirm-box">
-        <p class="confirm-box__title">Admin password</p>
+        <p class="confirm-box__title">Admin code</p>
         <p class="confirm-box__msg">Required to save changes so they sync out to every device.</p>
-        <input type="password" class="sheets-cfg__input" id="adminKeyInput" style="width:100%;margin-bottom:6px" placeholder="Password" autocomplete="off" />
-        <p class="confirm-box__msg" id="adminKeyError" style="display:none;color:#ff5a5a">Wrong password.</p>
+        <input type="password" inputmode="numeric" class="sheets-cfg__input" id="adminKeyInput" style="width:100%;margin-bottom:6px" placeholder="Code" autocomplete="off" />
+        <p class="confirm-box__msg" id="adminKeyError" style="display:none;color:#ff5a5a">Wrong code.</p>
         <div class="confirm-box__btns">
           <button class="btn-cancel">Cancel</button>
           <button class="btn-confirm">Confirm</button>
@@ -930,6 +930,64 @@
       confirmBtn.onclick = attempt;
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') attempt(); });
     });
+  }
+
+  /* Gates the whole admin page — shown before any results/editor content
+     ever renders, with no way to dismiss it (unlike promptForAdminKey's
+     mid-session prompt, there's nothing to fall back to here). Uses the
+     same admin key/cache as saving, so unlocking the page also covers the
+     first save of the session — no second prompt. */
+  function showAdminGate() {
+    return new Promise((resolve) => {
+      const overlay = h('<div class="confirm-overlay"></div>');
+      const box = h(`<div class="confirm-box">
+        <p class="confirm-box__title">Admin</p>
+        <p class="confirm-box__msg">Enter the admin code to continue.</p>
+        <input type="password" inputmode="numeric" class="sheets-cfg__input" id="adminGateInput" style="width:100%;margin-bottom:6px" placeholder="Code" autocomplete="off" />
+        <p class="confirm-box__msg" id="adminGateError" style="display:none;color:#ff5a5a">Wrong code.</p>
+        <div class="confirm-box__btns">
+          <button class="btn-confirm" id="adminGateBtn" style="flex:1">Enter</button>
+        </div>
+      </div>`);
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      const input = box.querySelector('#adminGateInput');
+      const errEl = box.querySelector('#adminGateError');
+      const btn = box.querySelector('#adminGateBtn');
+      input.focus();
+
+      const attempt = async () => {
+        const val = input.value.trim();
+        if (!val) return;
+        errEl.style.display = 'none';
+        btn.disabled = true; btn.textContent = 'Checking…';
+        const ok = await window.STDSheets.verifyAdminKey(val);
+        btn.disabled = false; btn.textContent = 'Enter';
+        if (ok) {
+          adminKey = val;
+          sessionStorage.setItem('scania_admin_key', val);
+          overlay.remove();
+          resolve(true);
+        } else {
+          errEl.style.display = 'block';
+          input.select();
+        }
+      };
+      btn.onclick = attempt;
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') attempt(); });
+    });
+  }
+
+  /* Resolves once a verified admin key is cached — re-checks a cached one
+     (it may have been rotated server-side) before falling back to the gate. */
+  async function ensureAdminAccess() {
+    if (adminKey) {
+      const stillValid = await window.STDSheets.verifyAdminKey(adminKey);
+      if (stillValid) return true;
+      adminKey = '';
+      sessionStorage.removeItem('scania_admin_key');
+    }
+    return showAdminGate();
   }
 
   /* "Test connection" — lets staff on site check the webhook is actually
@@ -1284,18 +1342,22 @@
   window.STD.onQuestionsChanged = () => { if (view === 'results') render(); };
 
   /* ---------- boot ---------- */
-  window.STD.load();
-  /* Restore any default vehicles that were accidentally removed */
-  let repaired = false;
-  window.STD.DEFAULT_VEHICLES.forEach((dv) => {
-    if (!state.vehicles.find((v) => v.id === dv.id)) {
-      state.vehicles.push(dv);
-      repaired = true;
-    }
-  });
-  if (repaired) save();
-  syncNav();
-  render();
-  /* Auto-load from Sheets if URL is configured */
-  if (window.STDSheets && window.STDSheets.getUrl()) loadFromSheets();
+  (async function boot() {
+    await ensureAdminAccess();   // full-page gate — nothing below runs until the correct code is entered
+
+    window.STD.load();
+    /* Restore any default vehicles that were accidentally removed */
+    let repaired = false;
+    window.STD.DEFAULT_VEHICLES.forEach((dv) => {
+      if (!state.vehicles.find((v) => v.id === dv.id)) {
+        state.vehicles.push(dv);
+        repaired = true;
+      }
+    });
+    if (repaired) save();
+    syncNav();
+    render();
+    /* Auto-load from Sheets if URL is configured */
+    if (window.STDSheets && window.STDSheets.getUrl()) loadFromSheets();
+  })();
 })();

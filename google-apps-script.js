@@ -29,19 +29,33 @@
  *     svar och frågekonfiguration). Ligger inbäddad i appens egen källkod
  *     (sheets.js) — stoppar någon som bara har eller gissar sig till
  *     webhook-adressen och försöker skicka data direkt dit, förbi appen.
- *   - ADMIN_PASSWORD krävs därutöver för att spara frågekonfiguration
- *     specifikt. Skrivs in av personal i adminpanelen, ligger ALDRIG i
- *     någon fil i repot — byt det direkt nedan innan första
- *     distributionen, och dela det bara muntligt/i en lösenordshanterare.
+ *   - ADMIN_PASSWORD är den kod som låser hela admin.html (adminpanelen
+ *     visar ingenting förrän rätt kod skrivits in) och krävs därutöver för
+ *     att spara frågekonfiguration. Skrivs in av personal, ligger ALDRIG i
+ *     någon fil i repot — byt det direkt nedan innan första distributionen,
+ *     och dela det bara muntligt/i en lösenordshanterare. En kort, fyrsiffrig
+ *     kod är bekväm att skriva in på en platta men har bara 10 000 möjliga
+ *     kombinationer — ADMIN_CHECK_MAX nedan begränsar därför separat och
+ *     strängt hur många gissningsförsök som accepteras per minut.
  * Ändra båda värdena nedan och gör en ny distribution för att byta dem.
  */
 const WEBHOOK_KEY = '89a632a3709ca303a0e36357db893769a525ed04';
-const ADMIN_PASSWORD = 'Thdc0BzVMV297BqF';
+const ADMIN_PASSWORD = '1891';
 
 const BACKUP_SHEET_ID = '1nT1nk6i64WLbdtWQ5tBOoysdj3pAHGQJ4uix6V8W7y0';
 
 const RATE_LIMIT_MAX = 60;          // max accepterade skrivningar per rullande fönster
 const RATE_LIMIT_WINDOW_SEC = 60;
+
+/* ADMIN_PASSWORD är en kort, fyrsiffrig kod — bekvämt att skriva in på en
+   platta, men bara 10 000 möjliga kombinationer, alldeles för få för att stå
+   emot ett skript som gissar snabbt. Den här strängare, separata gränsen
+   gäller bara försök att just gissa koden (både doGet?action=checkAdmin och
+   ett doPost-anrop med fel adminKey), oberoende av den vanliga
+   skrivbegränsningen ovan — annars skulle någon som spammar gissningar
+   också kunna blockera riktiga besökares inskick. */
+const ADMIN_CHECK_MAX = 5;
+const ADMIN_CHECK_WINDOW_SEC = 60;
 
 function unauthorized(reason) {
   return ContentService
@@ -54,11 +68,19 @@ function unauthorized(reason) {
    mot ett skript som spammar in falska svar snabbt, inte mot enstaka
    missbruk (det stoppar WEBHOOK_KEY/ADMIN_PASSWORD ovan). */
 function checkRateLimit() {
+  return checkBucket('reqcount_', RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_SEC);
+}
+
+function checkAdminRateLimit() {
+  return checkBucket('admincheck_', ADMIN_CHECK_MAX, ADMIN_CHECK_WINDOW_SEC);
+}
+
+function checkBucket(prefix, max, windowSec) {
   const cache = CacheService.getScriptCache();
-  const bucket = 'reqcount_' + Math.floor(Date.now() / (RATE_LIMIT_WINDOW_SEC * 1000));
+  const bucket = prefix + Math.floor(Date.now() / (windowSec * 1000));
   const current = Number(cache.get(bucket)) || 0;
-  if (current >= RATE_LIMIT_MAX) return false;
-  cache.put(bucket, String(current + 1), RATE_LIMIT_WINDOW_SEC + 5);
+  if (current >= max) return false;
+  cache.put(bucket, String(current + 1), windowSec + 5);
   return true;
 }
 
@@ -68,6 +90,7 @@ function doPost(e) {
   if (!checkRateLimit()) return unauthorized('rate-limited');
 
   if (e.parameter.config) {
+    if (!checkAdminRateLimit()) return unauthorized('rate-limited');
     if (e.parameter.adminKey !== ADMIN_PASSWORD) return unauthorized('unauthorized-admin');
     return saveConfig(e.parameter.config);
   }
@@ -207,7 +230,7 @@ function doGet(e) {
      attempting to save — rate-limited so it can't be used to brute-force
      ADMIN_PASSWORD by guessing. */
   if (action === 'checkAdmin') {
-    if (!checkRateLimit()) return unauthorized('rate-limited');
+    if (!checkAdminRateLimit()) return unauthorized('rate-limited');
     const ok = !!(e && e.parameter && e.parameter.key === ADMIN_PASSWORD);
     return ContentService
       .createTextOutput(JSON.stringify({ ok }))
