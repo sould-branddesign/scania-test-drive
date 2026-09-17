@@ -138,8 +138,19 @@
     const topRow = h('<div class="conn-test-row"></div>');
     topRow.appendChild(formSwitcher());
     if (window.STDSheets && window.STDSheets.getUrl()) {
-      topRow.appendChild(h('<button class="btn secondary" data-act="sheets-test">Test connection</button>'));
-      topRow.appendChild(h('<button class="btn secondary" data-act="sheets-refresh">Refresh results</button>'));
+      const tools = h('<div class="conn-test-row__tools"></div>');
+      tools.appendChild(h('<button class="btn secondary" data-act="sheets-test">Test connection</button>'));
+      tools.appendChild(h(`<button class="btn secondary btn-icon" data-act="sheets-refresh" title="Refresh results" aria-label="Refresh results">
+        <svg class="icon-refresh" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <svg class="icon-check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </button>`));
+      topRow.appendChild(tools);
     }
     wrap.appendChild(topRow);
     const evald = evaluatedVehicles();
@@ -224,14 +235,22 @@
       }
       const a = e.target.closest('[data-act]'); if (!a) return;
       if (a.dataset.act === 'sheets-test') { testConnection(); }
-      if (a.dataset.act === 'sheets-refresh') {
+      if (a.dataset.act === 'sheets-refresh' && !a.classList.contains('is-loading')) {
         const before = submissions.length;
-        a.textContent = 'Refreshing…'; a.disabled = true;
+        a.classList.add('is-loading');
+        a.disabled = true;
         /* loadFromSheets() re-renders on success (view is 'results' here,
            since that's the only place this button appears), which replaces
-           this exact button with a fresh one — so there's nothing to reset
-           on this reference once the promise settles, only the toast. */
+           this exact button with a fresh one — so once the promise settles,
+           re-select the (new) button by its data-act rather than reusing
+           `a`, and briefly mark it "done" (checkmark) before it settles
+           back to its default idle arrow. */
         loadFromSheets().then((count) => {
+          const fresh = document.querySelector('[data-act="sheets-refresh"]');
+          if (fresh) {
+            fresh.classList.add('is-done');
+            setTimeout(() => fresh.classList.remove('is-done'), 1200);
+          }
           if (count == null) toast('Could not reach Sheets — check the connection');
           else if (count === before) toast('No new results');
           else toast((count - before) + ' new result' + (count - before === 1 ? '' : 's'));
