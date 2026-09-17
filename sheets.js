@@ -210,18 +210,28 @@
 
   /* Ask the backend, right now, whether `key` matches ADMIN_PASSWORD — a
      plain GET, not one of the blind no-cors POSTs, so the admin panel gets
-     an immediate, reliable yes/no before it ever tries to save. */
-  async function verifyAdminKey(key) {
+     an immediate, reliable yes/no before it ever tries to save.
+
+     Races the fetch against a timeout, same as ping() above and for the
+     same reason: an idle Apps Script deployment can take several seconds
+     to wake up, and an AbortController tied to its cross-origin redirect
+     was observed to hang indefinitely instead of actually cancelling —
+     so this just stops waiting after timeoutMs rather than aborting. */
+  async function verifyAdminKey(key, timeoutMs = 15000) {
     const url = getUrl();
     if (!url || !key) return false;
-    try {
-      const res = await fetch(url + '?action=checkAdmin&key=' + encodeURIComponent(key), { cache: 'no-store' });
-      if (!res.ok) return false;
-      const data = await res.json();
-      return !!(data && data.ok);
-    } catch {
-      return false;
-    }
+    const attempt = (async () => {
+      try {
+        const res = await fetch(url + '?action=checkAdmin&key=' + encodeURIComponent(key), { cache: 'no-store' });
+        if (!res.ok) return false;
+        const data = await res.json();
+        return !!(data && data.ok);
+      } catch {
+        return false;
+      }
+    })();
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs));
+    return Promise.race([attempt, timeout]);
   }
 
   async function postConfig(url, json, adminKey) {

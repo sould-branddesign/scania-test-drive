@@ -53,8 +53,11 @@ const RATE_LIMIT_WINDOW_SEC = 60;
    gäller bara försök att just gissa koden (både doGet?action=checkAdmin och
    ett doPost-anrop med fel adminKey), oberoende av den vanliga
    skrivbegränsningen ovan — annars skulle någon som spammar gissningar
-   också kunna blockera riktiga besökares inskick. */
-const ADMIN_CHECK_MAX = 5;
+   också kunna blockera riktiga besökares inskick. 20/minut stoppar fortfarande
+   en gissningsattack hårt (timmar för att beta av alla 10 000 koder) utan att
+   trigga på helt normal användning — en missad knapptryckning, eller några
+   personer som råkar testa koden inom samma minut vid ett event. */
+const ADMIN_CHECK_MAX = 20;
 const ADMIN_CHECK_WINDOW_SEC = 60;
 
 function unauthorized(reason) {
@@ -124,9 +127,21 @@ function doPost(e) {
 }
 
 /* Skriv en inskickad utvärdering (läsbar rad + rådata-JSON) till ett givet
-   kalkylark — används för både huvudarket och, om konfigurerat, backupen. */
+   kalkylark — används för både huvudarket och, om konfigurerat, backupen.
+
+   Körs idempotent: klienten kan inte läsa svaret på sin egen no-cors-POST
+   (se sheets.js), så den håller varje inskick som "pending" tills den ser
+   det i en senare läsning och skickar annars om det — vilket är rätt
+   beteende om det verkligen inte kom fram, men skulle skriva en extra,
+   identisk rad om det redan gjort det (t.ex. om läsningen råkade missa
+   det inom tidsfönstret den letade). timestamp sätts en gång per inskick
+   och skickas med oförändrat vid ett omskick, så den fungerar som ett
+   naturligt inskicks-ID — hittas en rad med samma timestamp redan i
+   Raw-arket är det med säkerhet samma inskick, inte en ny besökare. */
 function writeSubmission(ss, sheetName, headers, row, raw) {
   const rawSheetName = 'Raw — ' + sheetName;
+
+  if (raw && raw.timestamp && rawSheetHasTimestamp(ss, rawSheetName, raw.timestamp)) return;
 
   /* 1. Skriv läsbar rad till rätt ark (Test Drive / Cab Assessment) */
   let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
@@ -136,6 +151,22 @@ function writeSubmission(ss, sheetName, headers, row, raw) {
   let existingHeaders = (lastRow >= 1 && lastCol >= 1)
     ? sheet.getRange(1, 1, 1, lastCol).getValues()[0]
     : [];
+
+  /* Ta bort kolumner som inte längre hör till en aktuell fråga (t.ex. döpt
+     om eller borttagen i Edit questions) — annars hopar tomma spökkolumner
+     upp sig för alltid. headers här är alltid HELA det aktuella
+     frågeuppsättningen för det här formuläret (appen kräver att alla
+     kategorier är besvarade innan Submit går att trycka), så allt i
+     existingHeaders som inte finns med i headers är med säkerhet inaktuellt.
+     Historiska svar för de borttagna kolumnerna försvinner från den här
+     läsbara fliken, men finns kvar orört i Raw-fliken nedan. Tas bort
+     bakifrån så att kolumnindex för det som blir kvar inte förskjuts. */
+  existingHeaders
+    .map((h, i) => ({ h, col: i + 1 }))
+    .filter(({ h }) => h && !headers.includes(h))
+    .reverse()
+    .forEach(({ col }) => sheet.deleteColumn(col));
+  existingHeaders = existingHeaders.filter((h) => !h || headers.includes(h));
 
   headers.forEach((h) => {
     if (!existingHeaders.includes(h)) {
@@ -163,6 +194,22 @@ function writeSubmission(ss, sheetName, headers, row, raw) {
     }
     rawSheet.appendRow([JSON.stringify(raw)]);
   }
+}
+
+/* Har en rad med exakt denna timestamp redan skrivits till Raw-arket?
+   Läser hela kolumnen — helt tillräckligt snabbt på den skala en
+   kiosk-app genererar inskick (dussintals till några hundra per dag). */
+function rawSheetHasTimestamp(ss, rawSheetName, timestamp) {
+  const rawSheet = ss.getSheetByName(rawSheetName);
+  if (!rawSheet || rawSheet.getLastRow() <= 1) return false;
+  const rows = rawSheet.getRange(2, 1, rawSheet.getLastRow() - 1, 1).getValues();
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const parsed = JSON.parse(rows[i][0]);
+      if (parsed && parsed.timestamp === timestamp) return true;
+    } catch (err) { /* oläsbar rad — inte en match, hoppa vidare */ }
+  }
+  return false;
 }
 
 /* ---- delad frågekonfiguration (frågor, fordon, översättningar, ikoner) ----

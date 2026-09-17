@@ -887,6 +887,12 @@
   }
 
   function promptForAdminKey() {
+    /* Fire-and-forget: wakes up the Apps Script deployment (a bare GET,
+       untouched by any rate limit) the moment the code prompt appears, so
+       the real checkAdmin round-trip on submit lands on an already-warm
+       container instead of paying its cold-start latency too — Apps
+       Script's biggest delay is spinning up, not the actual check. */
+    if (window.STDSheets) window.STDSheets.ping();
     return new Promise((resolve) => {
       const overlay = h('<div class="confirm-overlay"></div>');
       const box = h(`<div class="confirm-box">
@@ -938,6 +944,11 @@
      same admin key/cache as saving, so unlocking the page also covers the
      first save of the session — no second prompt. */
   function showAdminGate() {
+    /* Same warm-up as promptForAdminKey() — see its comment. This is the
+       very first thing that happens on a cold visit to admin.html, so it's
+       the case that benefits the most: the container gets its wake-up call
+       while the person is still typing their PIN, not after they submit it. */
+    if (window.STDSheets) window.STDSheets.ping();
     return new Promise((resolve) => {
       const overlay = h('<div class="confirm-overlay"></div>');
       const box = h(`<div class="confirm-box">
