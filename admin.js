@@ -223,17 +223,8 @@
       }
       const a = e.target.closest('[data-act]'); if (!a) return;
       if (a.dataset.act === 'sheets-test') { testConnection(); }
-      if (a.dataset.act === 'sheets-load') { loadFromSheets(); }
       if (a.dataset.act === 'clear') { submissions = submissions.filter((s) => (s.formId || 'testdrive') !== (activeForm === 'cab' ? 'cab' : 'testdrive')); filterGroup = ''; filterMarkets.clear(); state.answers = {}; if (activeForm !== 'cab') { state.vehicles = []; save(); } render(); toast('Data cleared'); }
       if (a.dataset.act === 'present') openDeck();
-      if (a.dataset.act === 'sheets-load') {
-        a.textContent = 'Loading…'; a.disabled = true;
-        loadFromSheets().then((count) => {
-          if (count == null) toast('Fel: kontrollera att Apps Script är uppdaterat');
-          else if (count === 0) { toast('Inga nya svar i Sheets'); render(); }
-          else toast(count + ' svar laddade från Sheets');
-        });
-      }
     });
     app.appendChild(wrap);
   }
