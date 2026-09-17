@@ -139,6 +139,7 @@
     topRow.appendChild(formSwitcher());
     if (window.STDSheets && window.STDSheets.getUrl()) {
       topRow.appendChild(h('<button class="btn secondary" data-act="sheets-test">Test connection</button>'));
+      topRow.appendChild(h('<button class="btn secondary" data-act="sheets-refresh">Refresh results</button>'));
     }
     wrap.appendChild(topRow);
     const evald = evaluatedVehicles();
@@ -223,6 +224,19 @@
       }
       const a = e.target.closest('[data-act]'); if (!a) return;
       if (a.dataset.act === 'sheets-test') { testConnection(); }
+      if (a.dataset.act === 'sheets-refresh') {
+        const before = submissions.length;
+        a.textContent = 'Refreshing…'; a.disabled = true;
+        /* loadFromSheets() re-renders on success (view is 'results' here,
+           since that's the only place this button appears), which replaces
+           this exact button with a fresh one — so there's nothing to reset
+           on this reference once the promise settles, only the toast. */
+        loadFromSheets().then((count) => {
+          if (count == null) toast('Could not reach Sheets — check the connection');
+          else if (count === before) toast('No new results');
+          else toast((count - before) + ' new result' + (count - before === 1 ? '' : 's'));
+        });
+      }
       if (a.dataset.act === 'clear') { submissions = submissions.filter((s) => (s.formId || 'testdrive') !== (activeForm === 'cab' ? 'cab' : 'testdrive')); filterGroup = ''; filterMarkets.clear(); state.answers = {}; if (activeForm !== 'cab') { state.vehicles = []; save(); } render(); toast('Data cleared'); }
       if (a.dataset.act === 'present') openDeck();
     });
