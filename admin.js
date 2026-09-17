@@ -100,14 +100,21 @@
     });
   }
 
-  /* Load answers from Sheets and merge into state, then re-render */
+  const RESULTS_POLL_MS = 30000; // how often the results view checks Sheets for new submissions
+
+  /* Load answers from Sheets and merge into state, then re-render — unless
+     someone's on the editor tab, in which case skip the re-render so a
+     background poll can't reset an in-progress edit's focus/cursor (same
+     rule already used for the storage/onQuestionsChanged listeners below;
+     `submissions` itself still gets updated either way, so switching back
+     to Results shows the latest data immediately). */
   async function loadFromSheets() {
     if (!window.STDSheets) return null;
     const data = await window.STDSheets.fetchAll();
     if (!data || !data.evaluations) return null;
     submissions = data.evaluations.filter((e) => e.vehicleId);
     applyFilter();
-    render();
+    if (view === 'results') render();
     return submissions.length;
   }
   function syncNav() {
@@ -1388,7 +1395,13 @@
     if (repaired) save();
     syncNav();
     render();
-    /* Auto-load from Sheets if URL is configured */
-    if (window.STDSheets && window.STDSheets.getUrl()) loadFromSheets();
+    /* Auto-load from Sheets if URL is configured, then keep polling for
+       new submissions for as long as the admin page stays open. */
+    if (window.STDSheets && window.STDSheets.getUrl()) {
+      loadFromSheets();
+      setInterval(() => {
+        if (window.STDSheets && window.STDSheets.getUrl()) loadFromSheets();
+      }, RESULTS_POLL_MS);
+    }
   })();
 })();
