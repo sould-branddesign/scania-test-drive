@@ -266,7 +266,9 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
 .navlink--ext { color: var(--teal); border-color: rgba(24, 200, 212, .35); }
 .navlink--ext:hover { background: rgba(24, 200, 212, .12); color: var(--teal-bright); }
 
-/* test page (no top nav) — discreet corner link to the admin page */
+/* test page (no top nav) — invisible corner tap target for the admin page.
+   Same position/size as before, just opacity:0 instead of a faint label —
+   staff tap the (unmarked) top-right corner from memory to reach it. */
 .admin-link {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top));
@@ -281,10 +283,8 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   padding: 9px 14px;
   border-radius: 999px;
   border: 1px solid transparent;
-  opacity: .45;
-  transition: all .18s ease;
+  opacity: 0;
 }
-.admin-link:hover { opacity: 1; color: var(--ink-dim); border-color: var(--navy-600); background: rgba(2, 16, 44, .5); }
 .screen__head-left, .screen__head-right { display: flex; align-items: center; gap: 14px; }
 .restart-link {
   font-size: 11px;
