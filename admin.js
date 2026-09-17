@@ -757,10 +757,37 @@
   let translationDraft = null;
   let sheetsUnlocked = false; // Sheets webhook URL is read-only until explicitly unlocked — see sheetsCfgHtml()
   let pendingIconCi = -1;     // which editDraft category the hidden file input's next change event is for
-  /* Verified admin password for saving question/vehicle config — kept only
-     for this browser tab's session (sessionStorage), never in the app's own
-     source. See ensureAdminKey() below. */
+  /* Admin PIN, checked locally so opening the admin page never waits on a
+     network round-trip — must match ADMIN_PASSWORD in google-apps-script.js,
+     update both together if it's ever rotated. This only gates *viewing*
+     the page; actually saving a config change still goes through a real
+     backend check (see ensureAdminKey() below) — that's the one action
+     that writes to the shared backend, so it's the one worth the
+     round-trip. */
+  const ADMIN_PIN = '1891';
+  const ADMIN_SESSION_MS = 5 * 60 * 1000; // re-prompt for the code after 5 minutes idle
+
+  /* Verified admin key for the current session — kept only in this browser
+     tab's sessionStorage, never persisted anywhere longer-lived. Expires
+     after ADMIN_SESSION_MS regardless of whether the tab stays open. */
   let adminKey = sessionStorage.getItem('scania_admin_key') || '';
+
+  function hasFreshAdminKey() {
+    if (!adminKey) return false;
+    const at = Number(sessionStorage.getItem('scania_admin_key_at')) || 0;
+    if (Date.now() - at > ADMIN_SESSION_MS) {
+      adminKey = '';
+      sessionStorage.removeItem('scania_admin_key');
+      sessionStorage.removeItem('scania_admin_key_at');
+      return false;
+    }
+    return true;
+  }
+  function setAdminKey(val) {
+    adminKey = val;
+    sessionStorage.setItem('scania_admin_key', val);
+    sessionStorage.setItem('scania_admin_key_at', String(Date.now()));
+  }
 
   const ROUTE_ICON_MAX_DIM = 900;      // px — plenty for the ~230x290 display box even at retina
   const ROUTE_ICON_WARN_BYTES = 300000; // ~300KB data URI — still fine, but nudge toward SVG/smaller art
@@ -877,11 +904,12 @@
      there would otherwise just retry forever, silently. Resolves true once
      a verified key is ready to use, false if the user cancelled. */
   async function ensureAdminKey() {
-    if (adminKey) {
+    if (hasFreshAdminKey()) {
       const stillValid = await window.STDSheets.verifyAdminKey(adminKey);
       if (stillValid) return true;
       adminKey = '';
       sessionStorage.removeItem('scania_admin_key');
+      sessionStorage.removeItem('scania_admin_key_at');
     }
     return promptForAdminKey();
   }
@@ -922,8 +950,7 @@
         confirmBtn.disabled = false;
         confirmBtn.textContent = 'Confirm';
         if (ok) {
-          adminKey = val;
-          sessionStorage.setItem('scania_admin_key', val);
+          setAdminKey(val);
           overlay.remove();
           resolve(true);
         } else {
@@ -940,14 +967,16 @@
 
   /* Gates the whole admin page — shown before any results/editor content
      ever renders, with no way to dismiss it (unlike promptForAdminKey's
-     mid-session prompt, there's nothing to fall back to here). Uses the
-     same admin key/cache as saving, so unlocking the page also covers the
-     first save of the session — no second prompt. */
+     mid-session prompt, there's nothing to fall back to here). Checked
+     against ADMIN_PIN locally — instant, no network round-trip — since this
+     only decides whether to show the page. Sets the same admin key/cache
+     used for saving, but ensureAdminKey() re-verifies it against the real
+     backend before any actual write, so entering the page never on its own
+     grants the ability to save. */
   function showAdminGate() {
-    /* Same warm-up as promptForAdminKey() — see its comment. This is the
-       very first thing that happens on a cold visit to admin.html, so it's
-       the case that benefits the most: the container gets its wake-up call
-       while the person is still typing their PIN, not after they submit it. */
+    /* Fire-and-forget backend warm-up — doesn't affect the gate itself
+       (that's checked locally below), but means the backend is already
+       awake if this session goes on to save a change. */
     if (window.STDSheets) window.STDSheets.ping();
     return new Promise((resolve) => {
       const overlay = h('<div class="confirm-overlay"></div>');
@@ -967,16 +996,11 @@
       const btn = box.querySelector('#adminGateBtn');
       input.focus();
 
-      const attempt = async () => {
+      const attempt = () => {
         const val = input.value.trim();
         if (!val) return;
-        errEl.style.display = 'none';
-        btn.disabled = true; btn.textContent = 'Checking…';
-        const ok = await window.STDSheets.verifyAdminKey(val);
-        btn.disabled = false; btn.textContent = 'Enter';
-        if (ok) {
-          adminKey = val;
-          sessionStorage.setItem('scania_admin_key', val);
+        if (val === ADMIN_PIN) {
+          setAdminKey(val);
           overlay.remove();
           resolve(true);
         } else {
@@ -989,15 +1013,11 @@
     });
   }
 
-  /* Resolves once a verified admin key is cached — re-checks a cached one
-     (it may have been rotated server-side) before falling back to the gate. */
+  /* Resolves once an admin key is cached and still fresh (see
+     ADMIN_SESSION_MS) — falls back to the gate otherwise. Purely a local
+     check; see showAdminGate()'s comment for why that's fine here. */
   async function ensureAdminAccess() {
-    if (adminKey) {
-      const stillValid = await window.STDSheets.verifyAdminKey(adminKey);
-      if (stillValid) return true;
-      adminKey = '';
-      sessionStorage.removeItem('scania_admin_key');
-    }
+    if (hasFreshAdminKey()) return true;
     return showAdminGate();
   }
 
