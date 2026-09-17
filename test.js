@@ -257,7 +257,20 @@
     overlay.appendChild(box);
     document.body.appendChild(overlay);
     box.querySelector('.btn-cancel').onclick = () => overlay.remove();
-    box.querySelector('.btn-confirm').onclick = () => { overlay.remove(); onConfirm(); };
+    const confirmBtn = box.querySelector('.btn-confirm');
+    confirmBtn.onclick = () => {
+      /* A fast double-tap on a touchscreen can fire two click events before
+         the first one's overlay.remove() takes effect, which would call
+         onConfirm() (submitEvaluation) twice and post two separate, genuinely
+         distinct submissions (each with its own fresh timestamp) — the
+         backend's duplicate check can't catch that since they aren't the
+         same submission. Guard against it here, as the very first thing
+         the handler does. */
+      if (confirmBtn.disabled) return;
+      confirmBtn.disabled = true;
+      overlay.remove();
+      onConfirm();
+    };
   }
 
   function submitEvaluation() {
