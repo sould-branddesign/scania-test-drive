@@ -182,20 +182,32 @@
       return isNaN(na) || isNaN(nb) ? a.localeCompare(b) : na - nb;
     });
     const fmtDate = (iso) => { const d = new Date(iso); return isNaN(d) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); };
-    // Normalise all group values to ISO, deduplicate, sort chronologically
+    // Normalise all group values to ISO, deduplicate, sort chronologically —
+    // always including today so it's there to preselect even before any
+    // evaluation has actually been submitted yet today.
     const rawGroups = submissions.filter((s) => (s.formId || 'testdrive') === formId).map((s) => s.group).filter(Boolean);
-    const isoGroups = [...new Set(rawGroups.map(toIso))].sort();
+    const todayIso = toIso(new Date());
+    const isoGroups = [...new Set([...rawGroups.map(toIso), todayIso])].sort();
     // Build a map so filterGroup (stored as original value) can match any variant
     const isoToOriginal = {};
     rawGroups.forEach((g) => { const iso = toIso(g); if (!isoToOriginal[iso]) isoToOriginal[iso] = g; });
     const bar = h('<div class="filter-bar"></div>');
     bar.appendChild(h(`<span class="filter-bar__label">Date:</span>`));
     const activeIso = filterGroup ? toIso(filterGroup) : '';
-    bar.appendChild(h(`<button class="filter-btn ${activeIso === '' ? 'is-active' : ''}" data-fg="">All days</button>`));
-    isoGroups.forEach((iso) => {
-      const orig = isoToOriginal[iso] || iso;
-      bar.appendChild(h(`<button class="filter-btn ${activeIso === iso ? 'is-active' : ''}" data-fg="${esc(orig)}">${fmtDate(iso)}</button>`));
+    const dateSelect = h(`<select class="filter-select">
+      <option value="" ${activeIso === '' ? 'selected' : ''}>All days</option>
+      ${isoGroups.map((iso) => {
+        const orig = isoToOriginal[iso] || iso;
+        return `<option value="${esc(orig)}" ${activeIso === iso ? 'selected' : ''}>${fmtDate(iso)}${iso === todayIso ? ' (today)' : ''}</option>`;
+      }).join('')}
+    </select>`);
+    dateSelect.addEventListener('change', () => {
+      filterGroup = dateSelect.value;
+      filterMarkets.clear();
+      applyFilter();
+      render();
     });
+    bar.appendChild(dateSelect);
     wrap.appendChild(bar);
 
     const markets = [...new Set(submissions.filter((s) => {
@@ -223,8 +235,6 @@
     }
 
     wrap.addEventListener('click', (e) => {
-      const fg = e.target.closest('[data-fg]');
-      if (fg) { filterGroup = fg.dataset.fg; filterMarkets = new Set([...filterMarkets].filter((m) => markets.includes(m))); applyFilter(); render(); return; }
       const fm = e.target.closest('[data-fm]');
       if (fm) {
         const m = fm.dataset.fm;
