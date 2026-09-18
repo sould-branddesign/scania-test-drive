@@ -125,7 +125,7 @@
   /* nav */
   document.addEventListener('click', (e) => {
     const fb = e.target.closest('[data-form]');
-    if (fb && fb.dataset.form !== activeForm) { activeForm = fb.dataset.form; filterGroup = ''; filterMarkets.clear(); applyFilter(); setFormTheme(); render(); return; }
+    if (fb && fb.dataset.form !== activeForm) { activeForm = fb.dataset.form; filterGroup = toIso(new Date()); filterMarkets.clear(); applyFilter(); setFormTheme(); render(); return; }
     const tab = e.target.closest('.navlink[data-tab]');
     if (tab) go(tab.dataset.tab);
   });
@@ -266,7 +266,7 @@
           else toast((count - before) + ' new result' + (count - before === 1 ? '' : 's'));
         });
       }
-      if (a.dataset.act === 'clear') { submissions = submissions.filter((s) => (s.formId || 'testdrive') !== (activeForm === 'cab' ? 'cab' : 'testdrive')); filterGroup = ''; filterMarkets.clear(); state.answers = {}; if (activeForm !== 'cab') { state.vehicles = []; save(); } render(); toast('Data cleared'); }
+      if (a.dataset.act === 'clear') { submissions = submissions.filter((s) => (s.formId || 'testdrive') !== (activeForm === 'cab' ? 'cab' : 'testdrive')); filterGroup = toIso(new Date()); filterMarkets.clear(); state.answers = {}; if (activeForm !== 'cab') { state.vehicles = []; save(); } render(); toast('Data cleared'); }
       if (a.dataset.act === 'present') openDeck();
     });
     app.appendChild(wrap);
