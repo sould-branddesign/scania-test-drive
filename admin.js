@@ -249,17 +249,23 @@
         const before = submissions.length;
         a.classList.add('is-loading');
         a.disabled = true;
-        /* loadFromSheets() re-renders on success (view is 'results' here,
-           since that's the only place this button appears), which replaces
-           this exact button with a fresh one — so once the promise settles,
-           re-select the (new) button by its data-act rather than reusing
-           `a`, and briefly mark it "done" (checkmark) before it settles
-           back to its default idle arrow. */
+        /* loadFromSheets() only re-renders on success (view is 'results'
+           here, since that's the only place this button appears) — on
+           failure it returns null without touching the DOM at all, so `a`
+           is still the live button in that case and needs its own loading
+           state cleared explicitly, or it's stuck spinning forever. Always
+           re-select by data-act rather than assuming `a` is stale, and only
+           show the "done" checkmark when there's actually new data to
+           celebrate. */
         loadFromSheets().then((count) => {
           const fresh = document.querySelector('[data-act="sheets-refresh"]');
           if (fresh) {
-            fresh.classList.add('is-done');
-            setTimeout(() => fresh.classList.remove('is-done'), 1200);
+            fresh.classList.remove('is-loading');
+            fresh.disabled = false;
+            if (count != null) {
+              fresh.classList.add('is-done');
+              setTimeout(() => fresh.classList.remove('is-done'), 1200);
+            }
           }
           if (count == null) toast('Could not reach Sheets — check the connection');
           else if (count === before) toast('No new results');

@@ -96,17 +96,27 @@
     return Promise.race([attempt, timeout]);
   }
 
-  /* Fetch all submitted evaluations from Sheets (for Results view + reconciliation) */
-  async function fetchAll() {
+  /* Fetch all submitted evaluations from Sheets (for Results view + reconciliation).
+     Races the fetch against a timeout, same as ping()/verifyAdminKey() and for the
+     same reason — an idle Apps Script deployment can take a long time to wake up,
+     and this one had no bound at all, so a slow response left admin.js's "Refresh
+     results" button stuck spinning indefinitely (see the "is-loading" handling
+     there — that's fixed too, but this is the actual open-ended wait it was
+     waiting on). 20s since this can return more data than the other two calls. */
+  async function fetchAll(timeoutMs = 20000) {
     const url = getUrl();
     if (!url) return null;
-    try {
-      const res = await fetch(url + '?action=data', { cache: 'no-store' });
-      if (!res.ok) return null;
-      return await res.json();
-    } catch {
-      return null;
-    }
+    const attempt = (async () => {
+      try {
+        const res = await fetch(url + '?action=data', { cache: 'no-store' });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    })();
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs));
+    return Promise.race([attempt, timeout]);
   }
 
   /* POST a single submission to the Apps Script endpoint.
