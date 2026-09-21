@@ -127,7 +127,10 @@ html, body {
   text-size-adjust: 100%;
   overscroll-behavior-y: none;            /* no rubber-band / pull-to-refresh */
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;             /* kill the 300ms tap delay + double-tap zoom */
+  /* pan-x/pan-y (not "manipulation") so pinch-zoom is blocked too, not just
+     double-tap zoom — this is a kiosk, panning/scrolling (admin's Results
+     page) still needs to work, actual zooming doesn't. */
+  touch-action: pan-x pan-y;
 }
 
 body { padding-top: calc(64px + env(safe-area-inset-top)); }
