@@ -131,6 +131,16 @@ html, body {
      double-tap zoom — this is a kiosk, panning/scrolling (admin's Results
      page) still needs to work, actual zooming doesn't. */
   touch-action: pan-x pan-y;
+  /* No text selection anywhere in the kiosk/admin UI — a long-press
+     shouldn't pop a selection handle on a touchscreen app. Inputs/
+     textareas are exempted right below so typing a code or pasting a
+     webhook URL in the admin panel still works normally. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+input, textarea {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 body { padding-top: calc(64px + env(safe-area-inset-top)); }
