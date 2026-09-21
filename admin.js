@@ -969,7 +969,7 @@
        Script's biggest delay is spinning up, not the actual check. */
     if (window.STDSheets) window.STDSheets.ping();
     return new Promise((resolve) => {
-      const overlay = h('<div class="confirm-overlay"></div>');
+      const overlay = h('<div class="confirm-overlay confirm-overlay--top"></div>');
       const box = h(`<div class="confirm-box">
         <p class="confirm-box__title">Admin code</p>
         <p class="confirm-box__msg">Required to save changes so they sync out to every device.</p>
@@ -1028,7 +1028,7 @@
        awake if this session goes on to save a change. */
     if (window.STDSheets) window.STDSheets.ping();
     return new Promise((resolve) => {
-      const overlay = h('<div class="confirm-overlay"></div>');
+      const overlay = h('<div class="confirm-overlay confirm-overlay--top"></div>');
       const box = h(`<div class="confirm-box">
         <button class="confirm-box__close" id="adminGateClose" title="Back" aria-label="Back">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

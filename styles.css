@@ -508,6 +508,15 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   z-index: 999;
   animation: fade .2s ease both;
 }
+/* For any confirm-box with a text input (the admin code prompts): centering
+   via align-items on a full-viewport-height flex container recalculates —
+   and visibly jumps — every time the on-screen keyboard opens or closes and
+   resizes the visual viewport. Anchoring near the top with a fixed pixel
+   offset instead means it never has to move once the keyboard appears. */
+.confirm-overlay--top {
+  align-items: flex-start;
+  padding-top: max(80px, env(safe-area-inset-top));
+}
 .confirm-box {
   position: relative;
   background: linear-gradient(160deg, #0d2150, #02102c);
