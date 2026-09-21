@@ -177,9 +177,23 @@ function writeSubmission(ss, sheetName, headers, row, raw) {
   });
   sheet.setFrozenRows(1);
 
+  /* Timestamp kommer in som en UTC ISO-sträng (raw.timestamp, samma värde
+     som idempotens-kollen ovan matchar mot — den lämnas orörd i Raw-arket
+     och i idempotens-jämförelsen). Bara i den här läsbara vyn omvandlas den
+     till Stockholm-lokal tid, så det syns direkt vad klockan faktiskt var
+     här — Europe/Stockholm hanterar sommar-/vintertid automatiskt. */
   const dataRow = existingHeaders.map((h) => {
     const idx = headers.indexOf(h);
-    return idx >= 0 ? row[idx] : '';
+    if (idx < 0) return '';
+    const val = row[idx];
+    if (h === 'Timestamp' && val) {
+      try {
+        return Utilities.formatDate(new Date(val), 'Europe/Stockholm', "yyyy-MM-dd HH:mm:ss");
+      } catch (err) {
+        return val;
+      }
+    }
+    return val;
   });
   sheet.appendRow(dataRow);
 
