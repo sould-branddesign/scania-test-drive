@@ -143,6 +143,22 @@ function writeSubmission(ss, sheetName, headers, row, raw) {
 
   if (raw && raw.timestamp && rawSheetHasTimestamp(ss, rawSheetName, raw.timestamp)) return;
 
+  /* Convert Timestamp (UTC ISO, e.g. "2026-09-21T09:05:23.456Z") to
+     Stockholm local time for display in the readable sheet — done here,
+     on the submission's own headers/row pair, rather than by matching
+     against the sheet's stored header text further down (which failed
+     to actually convert anything last time — worth being defensive about
+     that text ever drifting, rather than trusting it matches "Timestamp"
+     exactly). raw.timestamp (used for the idempotency check above and
+     stored in the Raw sheet) is untouched — this only rewrites `row`. */
+  const tsIdx = headers.indexOf('Timestamp');
+  if (tsIdx >= 0 && row[tsIdx]) {
+    try {
+      row = row.slice();
+      row[tsIdx] = Utilities.formatDate(new Date(row[tsIdx]), 'Europe/Stockholm', "yyyy-MM-dd HH:mm:ss");
+    } catch (err) { /* leave as-is if it doesn't parse as a date */ }
+  }
+
   /* 1. Skriv läsbar rad till rätt ark (Test Drive / Cab Assessment) */
   let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
 
@@ -177,23 +193,9 @@ function writeSubmission(ss, sheetName, headers, row, raw) {
   });
   sheet.setFrozenRows(1);
 
-  /* Timestamp kommer in som en UTC ISO-sträng (raw.timestamp, samma värde
-     som idempotens-kollen ovan matchar mot — den lämnas orörd i Raw-arket
-     och i idempotens-jämförelsen). Bara i den här läsbara vyn omvandlas den
-     till Stockholm-lokal tid, så det syns direkt vad klockan faktiskt var
-     här — Europe/Stockholm hanterar sommar-/vintertid automatiskt. */
   const dataRow = existingHeaders.map((h) => {
     const idx = headers.indexOf(h);
-    if (idx < 0) return '';
-    const val = row[idx];
-    if (h === 'Timestamp' && val) {
-      try {
-        return Utilities.formatDate(new Date(val), 'Europe/Stockholm', "yyyy-MM-dd HH:mm:ss");
-      } catch (err) {
-        return val;
-      }
-    }
-    return val;
+    return idx >= 0 ? row[idx] : '';
   });
   sheet.appendRow(dataRow);
 
