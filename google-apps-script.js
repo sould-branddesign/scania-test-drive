@@ -347,8 +347,12 @@ function doGet(e) {
     }
   }
 
-  /* Health-check — öppna URL:en i webbläsaren för att verifiera */
+  /* Health-check — öppna URL:en i webbläsaren för att verifiera.
+     "codeVersion" är bara en synlig markör för att kunna bekräfta utifrån
+     (utan att behöva skicka in ett testsvar) att en ny distribution
+     verkligen är den som faktiskt svarar — höj den varje gång koden
+     ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'tz-fix-2' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
