@@ -152,22 +152,21 @@ function writeSubmission(ss, sheetName, headers, row, raw) {
     ? sheet.getRange(1, 1, 1, lastCol).getValues()[0]
     : [];
 
-  /* Ta bort kolumner som inte längre hör till en aktuell fråga (t.ex. döpt
-     om eller borttagen i Edit questions) — annars hopar tomma spökkolumner
-     upp sig för alltid. headers här är alltid HELA det aktuella
-     frågeuppsättningen för det här formuläret (appen kräver att alla
-     kategorier är besvarade innan Submit går att trycka), så allt i
-     existingHeaders som inte finns med i headers är med säkerhet inaktuellt.
-     Historiska svar för de borttagna kolumnerna försvinner från den här
-     läsbara fliken, men finns kvar orört i Raw-fliken nedan. Tas bort
-     bakifrån så att kolumnindex för det som blir kvar inte förskjuts. */
-  existingHeaders
-    .map((h, i) => ({ h, col: i + 1 }))
-    .filter(({ h }) => h && !headers.includes(h))
-    .reverse()
-    .forEach(({ col }) => sheet.deleteColumn(col));
-  existingHeaders = existingHeaders.filter((h) => !h || headers.includes(h));
-
+  /* NOTE: this used to also delete columns not present in `headers`, on
+     the assumption that headers always carries the complete current
+     question set so anything else must be stale (a renamed/removed
+     question). That assumption breaks under concurrent submissions from
+     multiple tablets: two Apps Script executions can each read the same
+     existingHeaders before either commits, and if anything at all differs
+     between two devices' current header text (a config edit not yet
+     synced everywhere, or just unlucky timing), each one's "prune what's
+     not in MY headers" logic deletes columns the OTHER one just wrote to
+     — which is exactly what happened during a multi-tablet test: most
+     metric columns ended up empty for many rows, with several columns
+     duplicated from being deleted and re-added more than once. Reverted
+     to append-only. The dropped values were never actually lost — they're
+     intact in the Raw sheet below, which this never touches — only this
+     human-readable view lost them. */
   headers.forEach((h) => {
     if (!existingHeaders.includes(h)) {
       existingHeaders.push(h);
