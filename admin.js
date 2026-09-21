@@ -6,7 +6,7 @@
 (function () {
   'use strict';
   const { $, h, esc, clamp, slug, BRANDS, state, save, seedDemo,
-          vehicleCategoryScore, normaliseCategory,
+          vehicleCategoryScore, normaliseCategory, normaliseQuestions,
           DEFAULT_QUESTIONS, DEFAULT_CAB_QUESTIONS, LANGS, QI18N } = window.STD;
 
   let view = 'results';   // 'results' | 'editor'
@@ -1253,6 +1253,7 @@
   }
 
   function renderQList() {
+    editDraft = normaliseQuestions(editDraft);   // backfill any codes a fresh add-cat/add-metric needs, before rendering
     const list = $('#qlist'); list.innerHTML = '';
     if (editLang === 'en') renderQListEnglish(list); else renderQListTranslation(list);
   }
@@ -1261,7 +1262,7 @@
     editDraft.forEach((cat, ci) => {
       const card = h(`<div class="qcard" data-ci="${ci}">
         <div class="qcard__bar">
-          <div class="qcard__idx">${ci + 1}</div>
+          <div class="qcard__idx" title="Column code in the Sheets export">${esc(cat.code)}</div>
           <div class="spacer"></div>
           <button class="iconbtn" data-act="up" ${ci === 0 ? 'disabled' : ''} title="Move up">↑</button>
           <button class="iconbtn" data-act="down" ${ci === editDraft.length - 1 ? 'disabled' : ''} title="Move down">↓</button>
@@ -1286,7 +1287,7 @@
       cat.metrics.forEach((m, mi) => {
         mEl.appendChild(h(`<div class="metric-edit" data-mi="${mi}">
           <div class="metric-edit__grid">
-            <div class="field" style="margin:0"><label>Metric label</label><input class="input" data-mf="label" value="${esc(m.label)}"></div>
+            <div class="field" style="margin:0"><label>Metric label <span class="field__en" title="Column code in the Sheets export">#${esc(m.code)}</span></label><input class="input" data-mf="label" value="${esc(m.label)}"></div>
             <div class="field" style="margin:0"><label>Left label</label><input class="input" data-mf="min" value="${esc(m.min)}"></div>
             <div class="field" style="margin:0"><label>Right label</label><input class="input" data-mf="max" value="${esc(m.max)}"></div>
             <button class="iconbtn danger" data-act="del-metric" ${cat.metrics.length === 1 ? 'disabled' : ''} title="Remove metric">✕</button>
@@ -1302,7 +1303,7 @@
       const draft = translationDraft[cat.id];
       const card = h(`<div class="qcard" data-catid="${esc(cat.id)}">
         <div class="qcard__bar">
-          <div class="qcard__catlabel">${esc(cat.title)}</div>
+          <div class="qcard__catlabel">${esc(cat.code)} · ${esc(cat.title)}</div>
         </div>
         <div class="field"><label>Category title <span class="field__en">EN: ${esc(cat.title)}</span></label><input class="input" data-f="title" placeholder="${esc(cat.title)}" value="${esc(draft.title)}"></div>
         <div class="field"><label>Instruction <span class="field__en">EN: ${esc(cat.instruction)}</span></label><textarea class="textarea" data-f="instruction" rows="2" placeholder="${esc(cat.instruction)}">${esc(draft.instruction)}</textarea></div>
@@ -1375,7 +1376,7 @@
       case 'cancel': go('results'); break;
       case 'save': {
         if (editLang === 'en') {
-          if (activeForm === 'cab') { state.cabQuestions = editDraft.map(normaliseCategory); save(); }
+          if (activeForm === 'cab') { state.cabQuestions = normaliseQuestions(editDraft); save(); }
           else { window.ScaniaEval.setQuestions(editDraft); }
           toast('Questions saved'); go('results');
         } else {

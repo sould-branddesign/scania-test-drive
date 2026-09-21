@@ -57,7 +57,12 @@
     const row     = [timestamp,   group || '', lang, country || '', formId || 'testdrive', vehicleName, vehicleBrand];
     questions.forEach((cat) => {
       cat.metrics.forEach((m) => {
-        headers.push(cat.title + ' — ' + m.label);
+        /* Kolumnrubriken är frågans permanenta kod ("1a" osv, se assignCodes
+           i core.js), inte den redigerbara titeln/labeln — annars skapar en
+           omdöpning i editorn en ny kolumn i Sheets istället för att
+           fortsätta fylla den gamla. Läsbar text finns i "Frågekoder"-fliken
+           som byggs om varje gång configen sparas (se saveConfig). */
+        headers.push(m.code || (cat.title + ' — ' + m.label));
         row.push(answers[m.id] != null ? answers[m.id] : '');
       });
     });

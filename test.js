@@ -247,11 +247,11 @@
   function confirmSubmit(onConfirm) {
     const overlay = h('<div class="confirm-overlay"></div>');
     const box = h(`<div class="confirm-box">
-      <p class="confirm-box__title">Are you sure?</p>
-      <p class="confirm-box__msg">Once submitted you cannot go back and change your answers.</p>
+      <p class="confirm-box__title">${esc(t().confirmTitle)}</p>
+      <p class="confirm-box__msg">${esc(t().confirmMsg)}</p>
       <div class="confirm-box__btns">
-        <button class="btn-cancel">Go back</button>
-        <button class="btn-confirm">Submit</button>
+        <button class="btn-cancel">${esc(t().back)}</button>
+        <button class="btn-confirm">${esc(t().submit)}</button>
       </div>
     </div>`);
     overlay.appendChild(box);

@@ -257,6 +257,8 @@ function saveConfig(json) {
     ]);
     sheet.getRange(3, 1, chunks.length, 2).setValues(chunks.map((c, i) => ['json' + i, c]));
 
+    rebuildLegend(json);
+
     return ContentService
       .createTextOutput(JSON.stringify({ ok: true, updatedAt }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -264,6 +266,41 @@ function saveConfig(json) {
     return ContentService
       .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/* Läsbar förteckning kod → fråga, byggd om varje gång configen sparas.
+   Test Drive/Cab Assessment-flikarnas kolumnrubriker är numera bara
+   frågans permanenta kod ("1", "1a" …, se assignCodes i core.js) för att
+   aldrig behöva ändras om en fråga döps om — den koden är därför inte
+   självförklarande i sig, den här fliken är var den mänskliga texten
+   hör hemma. Körs som ett eget, isolerat steg så att ett fel här aldrig
+   får den faktiska konfigurationssparningen ovan att se ut att misslyckas. */
+const LEGEND_SHEET_NAME = 'Frågekoder';
+
+function rebuildLegend(json) {
+  try {
+    const config = JSON.parse(json);
+    const rows = [];
+    [['Test Drive', config.questions], ['Cab Assessment', config.cabQuestions]].forEach((pair) => {
+      const formName = pair[0];
+      (pair[1] || []).forEach((cat) => {
+        (cat.metrics || []).forEach((m) => {
+          rows.push([formName, cat.code || '', cat.title || '', m.code || '', m.label || '']);
+        });
+      });
+    });
+
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(LEGEND_SHEET_NAME) || ss.insertSheet(LEGEND_SHEET_NAME);
+    sheet.clearContents();
+    const headers = ['Formulär', 'Kategorikod', 'Kategori', 'Kolumnkod', 'Fråga'];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers])
+      .setFontWeight('bold').setBackground('#02102c').setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+    if (rows.length) sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  } catch (err) {
+    Logger.log('rebuildLegend failed: ' + err.message);
   }
 }
 
@@ -281,6 +318,99 @@ function readConfig() {
   let config = null;
   try { config = json ? JSON.parse(json) : null; } catch (e) { config = null; }
   return { updatedAt: updatedAt ? String(updatedAt) : null, config };
+}
+
+/* ---- Engångsreparation: bygg om Test Drive/Cab Assessment-flikarna från
+   Raw-arkens JSON ----
+
+   Historiska rader kan sakna eller ha omkastade svar i kolumn H och
+   framåt — kvarvarande skada från den nu borttagna kolumn-städningen
+   (se NOTE i writeSubmission ovan), som redan är fixad men aldrig
+   reparerade rader som redan hunnit skadas innan fixen låg live.
+   Raw-arkets JSON har aldrig varit fel, så hela fliken kan byggas om
+   från grunden utifrån den, i den kolumnordning dagens frågekonfiguration
+   (Config-arket) anger — vilket samtidigt konverterar alla gamla
+   UTC-tidsstämplar till svensk tid.
+
+   Körs manuellt en gång: välj funktionen "repairAllReadableSheets" i
+   listan högst upp i Apps Script-redigeraren och klicka Kör. Inte
+   nåbar via doGet/doPost, med avsikt — en skrivning som raderar och
+   bygger om en hel flik ska aldrig kunna triggas utifrån.
+
+   KÄND BEGRÄNSNING: kolumnen "Language" kan inte återskapas — språket
+   sparades aldrig i Raw-arkets JSON, bara i den läsbara raden vid
+   själva inskicket, så den blir tom för alla rader efter en reparation.
+   Svar på frågor som sedan tagits bort ur den aktuella konfigurationen
+   visas inte längre här (kolumnerna byggs efter DAGENS frågor) — men
+   finns fortfarande kvar orört i Raw-arkets JSON. */
+function repairAllReadableSheets() {
+  repairReadableSheet('Test Drive');
+  repairReadableSheet('Cab Assessment');
+}
+
+function repairReadableSheet(sheetName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const rawSheetName = 'Raw — ' + sheetName;
+  const rawSheet = ss.getSheetByName(rawSheetName);
+  if (!rawSheet || rawSheet.getLastRow() <= 1) {
+    Logger.log('Inget att reparera för ' + sheetName + ' — inget Raw-ark eller inga rader.');
+    return;
+  }
+
+  const config = readConfig().config || {};
+  const categories = (sheetName === 'Cab Assessment') ? (config.cabQuestions || []) : (config.questions || []);
+
+  const baseHeaders = ['Timestamp', 'Group', 'Language', 'Country', 'Form', 'Vehicle', 'Brand'];
+  const metricHeaders = [];
+  const metricIds = [];
+  categories.forEach((cat) => {
+    (cat.metrics || []).forEach((m) => {
+      metricHeaders.push(m.code || (cat.title + ' — ' + m.label));
+      metricIds.push(m.id);
+    });
+  });
+  const headers = baseHeaders.concat(metricHeaders);
+
+  const rawRows = rawSheet.getRange(2, 1, rawSheet.getLastRow() - 1, 1).getValues();
+  const outRows = [];
+  rawRows.forEach((r) => {
+    let entry;
+    try { entry = JSON.parse(r[0]); } catch (err) { entry = null; }
+    if (!entry) return;
+
+    let ts = entry.timestamp || '';
+    if (ts) {
+      try { ts = Utilities.formatDate(new Date(ts), 'Europe/Stockholm', "yyyy-MM-dd HH:mm:ss"); } catch (err) { /* behåll som den är */ }
+    }
+
+    const row = [
+      ts,
+      entry.group || '',
+      '', // språket sparades aldrig i Raw — kan inte återskapas
+      entry.country || '',
+      entry.formId || '',
+      entry.vehicleName || '',
+      entry.vehicleBrand || '',
+    ];
+    metricIds.forEach((id) => {
+      const val = entry.answers ? entry.answers[id] : undefined;
+      row.push(val != null ? val : '');
+    });
+    outRows.push(row);
+  });
+
+  const sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
+  sheet.clearContents();
+
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers])
+    .setFontWeight('bold').setBackground('#02102c').setFontColor('#ffffff');
+  sheet.setFrozenRows(1);
+
+  if (outRows.length) {
+    sheet.getRange(2, 1, outRows.length, headers.length).setValues(outRows);
+  }
+
+  Logger.log('Reparerade ' + sheetName + ': ' + outRows.length + ' rader, ' + headers.length + ' kolumner.');
 }
 
 /* ---- doGet: returnera all rådata (och den delade konfigurationen) till admin-sidan/enheterna ---- */
@@ -353,6 +483,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'tz-fix-2' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'q-codes-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
