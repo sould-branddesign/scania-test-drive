@@ -1013,13 +1013,15 @@
   }
 
   /* Gates the whole admin page — shown before any results/editor content
-     ever renders, with no way to dismiss it (unlike promptForAdminKey's
-     mid-session prompt, there's nothing to fall back to here). Checked
-     against ADMIN_PIN locally — instant, no network round-trip — since this
-     only decides whether to show the page. Sets the same admin key/cache
-     used for saving, but ensureAdminKey() re-verifies it against the real
-     backend before any actual write, so entering the page never on its own
-     grants the ability to save. */
+     ever renders. A close button backs out to wherever this tab came from
+     (the kiosk's "Admin" corner link, in practice) rather than leaving
+     someone stuck with only "enter the code or nothing" — that's the only
+     way out, since there's no admin content yet to fall back to showing.
+     Checked against ADMIN_PIN locally — instant, no network round-trip —
+     since this only decides whether to show the page. Sets the same admin
+     key/cache used for saving, but ensureAdminKey() re-verifies it against
+     the real backend before any actual write, so entering the page never
+     on its own grants the ability to save. */
   function showAdminGate() {
     /* Fire-and-forget backend warm-up — doesn't affect the gate itself
        (that's checked locally below), but means the backend is already
@@ -1028,6 +1030,12 @@
     return new Promise((resolve) => {
       const overlay = h('<div class="confirm-overlay"></div>');
       const box = h(`<div class="confirm-box">
+        <button class="confirm-box__close" id="adminGateClose" title="Back" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
         <p class="confirm-box__title">Admin</p>
         <p class="confirm-box__msg">Enter the admin code to continue.</p>
         <input type="password" inputmode="numeric" class="sheets-cfg__input" id="adminGateInput" style="width:100%;margin-bottom:6px" placeholder="Code" autocomplete="off" />
@@ -1041,6 +1049,16 @@
       const input = box.querySelector('#adminGateInput');
       const errEl = box.querySelector('#adminGateError');
       const btn = box.querySelector('#adminGateBtn');
+      /* history.back() rather than a hardcoded URL — this way it returns
+         to whichever kiosk page (Test Drive or Cab Assessment) actually
+         linked here, on its existing intro screen, instead of guessing.
+         Falls back to index.html on the rare visit with no history (e.g.
+         admin.html opened directly/bookmarked) so the button always does
+         something. */
+      box.querySelector('#adminGateClose').onclick = () => {
+        if (document.referrer || history.length > 1) history.back();
+        else location.href = 'index.html';
+      };
       input.focus();
 
       const attempt = () => {
