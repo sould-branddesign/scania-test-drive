@@ -21,7 +21,7 @@
      day it first picked up, mislabeling every submission after that. */
   function todayLabel() { return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
 
-  let ui = { view: 'intro', stepIndex: 0, draft: {}, completedCats: new Set() };
+  let ui = { view: 'intro', stepIndex: 0, draft: {} };
   let noAnim = false;
 
   function enterFullscreen() {
@@ -86,7 +86,7 @@
     const vehicle = getActiveVehicle();
     document.body.dataset.cabVehicle = ui.view === 'intro' && vehicle ? vehicle.id : '';
     if (!vehicle) { viewUnconfigured(); if (oldEl) oldEl.remove(); return; }
-    ({ intro: viewIntro, language: viewLanguage, hub: viewHub, question: viewQuestion, thanks: viewThanks }[ui.view] || viewIntro)();
+    ({ intro: viewIntro, language: viewLanguage, question: viewQuestion, thanks: viewThanks }[ui.view] || viewIntro)();
     if (oldEl) oldEl.remove();
     const al = document.querySelector('.admin-link');
     if (al) al.style.display = ui.view === 'intro' ? '' : 'none';
@@ -169,7 +169,7 @@
         state.lang = langSelect.value;
         state.country = countrySelect.value;
         save();
-        go('hub');
+        go('question', { step: 0 });
       } : null,
     }));
 
@@ -184,51 +184,13 @@
     app.appendChild(s);
   }
 
-  /* ---------- category hub ---------- */
+  /* ---------- category icons (question step) ---------- */
   const CAT_ICONS = {
     boarding: 'assets/icons/boarding-exiting.svg?v=3',
     ergonomics: 'assets/icons/ergonomics-reachability.svg?v=6',
     fit_finish: 'assets/icons/fit-finish.svg?v=7',
     safety: 'assets/icons/safety-visibility.svg?v=6',
   };
-
-  function viewHub() {
-    const vehicle = getActiveVehicle();
-    const brand = vehicle ? BRANDS[vehicle.brand] : BRANDS.scania;
-    const chipStyle = `--chip:${brand.solid}${brand.solidB ? ';--chip-b:' + brand.solidB : ''}`;
-    const s = screen();
-    const hd = head();
-    hd.querySelector('.screen__head-right').appendChild(h(`<span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${chipStyle}">${esc(vehicle ? vehicle.name : '')}</span>`));
-    s.appendChild(hd);
-    const b = body();
-    b.appendChild(h(`<h1 class="screen__title">${t().selectCategory || 'Select a category'}</h1>`));
-
-    const grid = h('<div class="cat-hub"></div>');
-    state.cabQuestions.forEach((q, i) => {
-      const cat = tCat(q);
-      const done = ui.completedCats.has(i);
-      const icon = CAT_ICONS[q.id];
-      const tile = h(`<div class="cat-tile ${done ? 'is-done' : ''}" role="button" tabindex="0">
-        <div class="cat-tile__check">✓</div>
-        ${icon ? `<img class="cat-tile__icon" src="${icon}" alt="" aria-hidden="true">` : ''}
-        <div class="cat-tile__name">${esc(cat.title)}</div>
-      </div>`);
-      const open = () => go('question', { step: i });
-      tile.addEventListener('click', open);
-      tile.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') open(); });
-      grid.appendChild(tile);
-    });
-    b.appendChild(grid);
-    s.appendChild(b);
-
-    const allDone = state.cabQuestions.every((_, i) => ui.completedCats.has(i));
-    s.appendChild(foot({
-      back: () => go('language'),
-      next: allDone ? () => confirmSubmit(submitEvaluation) : null,
-      nextLabel: allDone ? t().submit : false,
-    }));
-    app.appendChild(s);
-  }
 
     /* ---------- question step ---------- */
   function viewQuestion() {
@@ -241,6 +203,15 @@
     const chipStyle = `--chip:${brand.solid}${brand.solidB ? ';--chip-b:' + brand.solidB : ''}`;
     hd.querySelector('.screen__head-right').appendChild(h(`<span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${chipStyle}">${esc(vehicle ? vehicle.name : '')}</span>`));
     s.appendChild(hd);
+
+    const total = state.cabQuestions.length;
+    const step = h(`<div class="stepper" style="--step:${brand.text || brand.solid}"></div>`);
+    for (let i = 0; i < total; i++) {
+      const cls = i < ui.stepIndex ? 'is-done' : i === ui.stepIndex ? 'is-current' : '';
+      step.appendChild(h(`<div class="stepper__dot ${cls}"></div>`));
+      if (i < total - 1) step.appendChild(h(`<div class="stepper__line ${i < ui.stepIndex ? 'is-done' : ''}"></div>`));
+    }
+    s.appendChild(step);
 
     const b = body();
     const questionIcon = CAT_ICONS[cat.id];
@@ -274,10 +245,11 @@
     b.appendChild(wrap);
     s.appendChild(b);
 
+    const isLast = ui.stepIndex === total - 1;
     s.appendChild(foot({
-      back: () => go('hub'),
-      next: () => { ui.completedCats.add(ui.stepIndex); go('hub'); },
-      nextLabel: t().done || 'Done',
+      back: () => ui.stepIndex === 0 ? go('language') : go('question', { step: ui.stepIndex - 1 }),
+      next: isLast ? () => confirmSubmit(submitEvaluation) : () => go('question', { step: ui.stepIndex + 1 }),
+      nextLabel: isLast ? t().submit : t().next,
     }));
     app.appendChild(s);
   }
@@ -357,7 +329,7 @@
       tick();
       if (remaining <= 0) {
         clearInterval(autoRestartTimer);
-        ui.draft = {}; ui.completedCats = new Set(); go('intro');
+        ui.draft = {}; go('intro');
       }
     }, 1000);
   }
@@ -407,7 +379,7 @@
   const restartBtn = document.getElementById('restartBtn');
   if (restartBtn) {
     restartBtn.onclick = () => {
-      ui.draft = {}; ui.completedCats = new Set(); state.lang = 'en'; state.country = ''; save();
+      ui.draft = {}; state.lang = 'en'; state.country = ''; save();
       noAnim = true; go('intro'); noAnim = false;
     };
   }

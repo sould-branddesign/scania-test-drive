@@ -91,13 +91,29 @@
 
   const DEFAULT_CAB_QUESTIONS = [
     { id: 'boarding', title: 'Cab Entry', instruction: "Enter the cab from the driver's side, with the second person carrying the tablet. Climb in and settle into position — tablet holder on the bed, first person in the passenger seat.", metrics: [
-      { id: 'boarding_ease', label: 'Ease of boarding & exiting', min: 'Very difficult', max: 'Very easy', scale: 10 },
+      { id: 'boarding_ease', label: 'Ease of boarding', min: 'Very difficult', max: 'Very easy', scale: 10 },
       { id: 'door_interference', label: 'Door interference while climbing in', min: 'Very interfering', max: 'No interference', scale: 10 },
-      { id: 'cab_crossing_ease', label: 'Ease of moving across the cab', min: 'Very difficult', max: 'Very easy', scale: 10 },
     ] },
-    { id: 'ergonomics', title: 'Ergonomics & Reachability', instruction: "Seated in driver's position: rate reachability of key controls, info display, and logical grouping of functions.", metrics: [{ id: 'ergonomics_overall', label: 'Overall ergonomics impression', min: 'Poor', max: 'Very good', scale: 10 }, { id: 'info_display', label: 'Info display', min: 'Poor', max: 'Very good', scale: 10 }] },
-    { id: 'fit_finish', title: 'Fit & Finish', instruction: 'Evaluate material quality, color matching between surfaces, and consistency of panel gaps.', metrics: [{ id: 'overall_finish', label: 'Overall finish', min: 'Poor', max: 'Premium', scale: 10 }] },
-    { id: 'safety', title: 'Safety & Direct Vision', instruction: "Assess direct field of vision. Props are placed at marked floor positions — note which are visible from the driver's seat.", metrics: [{ id: 'direct_vision', label: 'Direct vision — front & sides', min: 'Very limited', max: 'Excellent', scale: 10 }, { id: 'mirror_visibility', label: 'Side mirror visibility', min: 'Blocked', max: 'Clear', scale: 10 }] },
+    { id: 'cross_cab_access', title: 'Cross Cab Access', instruction: "Move from the driver's seat to the bed and passenger seat, noting interference from the steering wheel, centre console, engine tunnel and front upper storage.", metrics: [
+      { id: 'cross_cab_access_ease', label: 'Cross cab access', min: 'Much interfering', max: 'Undramatic', scale: 10 },
+    ] },
+    { id: 'ergonomics', title: 'Driver ergonomics - seat & steering wheel', instruction: "Adjust the driver's seat to your preferred position relative to the brake and accelerator pedals — longitudinal position, height and backrest. Release the steering wheel lock and find the best available position. Check whether you need to readjust the seat afterwards to get a comfortable arm and hand position.", metrics: [
+      { id: 'adjustability', label: 'Adjustability', min: 'Limiting', max: 'Easy to find my preference', scale: 10 },
+      { id: 'ergonomics_overall', label: 'Ergonomics', min: 'Poor', max: 'Very good', scale: 10 },
+    ] },
+    { id: 'ergonomics_driving', title: 'Driver ergonomics – When driving', instruction: "While driving, find and reach the cruise control, climate control and sunblinds. Position your phone to charge, and try pulling a water bottle from the fridge without taking your eyes off the road.", metrics: [
+      { id: 'intuitive_reach', label: 'Intuitive and easy to find', min: 'Difficult/messy', max: 'Easy and good clusters', scale: 10 },
+    ] },
+    { id: 'fit_finish', title: 'Living – Practicalities and fit & finish', instruction: "On the passenger seat, get ready to eat a meal with a fork and knife — check where you'd naturally place the plate, and whether there's room for your legs. On the bed, get into a comfortable reading position with the light on, and turn on the digital mirrors to check your surroundings. Assess fit and finish against R&D's guidance.", metrics: [
+      { id: 'living_comfort', label: 'Living comfort', min: 'Restricted', max: 'Well thought through', scale: 10 },
+      { id: 'overall_finish', label: 'Fit and finish', min: 'Poor', max: 'Premium', scale: 10 },
+    ] },
+    { id: 'safety', title: 'Safe driving – Direct vision', instruction: "From the driver's seat, note what colour you can see on the pillar in front and on the sign behind the A-pillars.", metrics: [
+      { id: 'direct_vision', label: 'How much were you able to see', min: 'Red', max: 'Green', scale: 10 },
+    ] },
+    { id: 'cab_exit', title: 'Cab exit', instruction: "Open the door and exit the cab backing out. Note whether you can see the top step from your seat.", metrics: [
+      { id: 'cab_entry_exit', label: 'Cab entry and exit', min: 'Unsafe', max: 'Natural and effortless', scale: 10 },
+    ] },
   ];
 
   /* ---------- i18n for UI chrome (test page) ---------- */

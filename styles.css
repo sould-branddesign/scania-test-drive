@@ -1490,9 +1490,6 @@ body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-heig
   .vehicle-chip { font-size: 14px; padding: 0 20px; height: 32px; }
   .screen__head { min-height: 60px; }   /* 32px (.vehicle-chip height on tablet) + 14px+14px padding */
 
-  /* category hub — leave more breathing room above the footer buttons */
-  .cat-hub { margin-bottom: 48px; }
-
   /* sliders / metrics */
   .metric { margin-bottom: 42px; }
   .metric__label { font-size: 19px; }
@@ -1837,63 +1834,6 @@ body[data-cab-vehicle="man-tgx"] .bg-glow {
     radial-gradient(55% 45% at var(--gx1) var(--gy1), rgba(230, 110, 20, .85), transparent 70%),
     radial-gradient(45% 40% at var(--gx2) var(--gy2), rgba(60, 80, 200, .45), transparent 70%);
 }
-
-/* ============================================================
-   CAB ASSESSMENT — category hub
-   ============================================================ */
-.cat-hub {
-  display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr;
-  gap: clamp(10px, 2.5vh, 20px); margin-top: clamp(16px, 4vh, 40px);
-  width: 100%; max-width: 720px;
-  flex: 1; min-height: 0;
-}
-.cat-tile {
-  position: relative;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: clamp(14px, 4vh, 36px) 24px;
-  border-radius: 20px;
-  background: rgba(255,255,255,.04);
-  border: 1.5px solid rgba(255,255,255,.10);
-  cursor: pointer;
-  text-align: center;
-  transition: background .2s, border-color .2s, transform .15s;
-  min-height: 0;
-  height: 100%;
-  gap: clamp(8px, 2vh, 18px);
-}
-.cat-tile:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.20); transform: translateY(-2px); }
-.cat-tile:active { transform: scale(.97); }
-.cat-tile.is-done { border-color: var(--teal); background: rgba(7,169,158,.10); }
-.cat-tile__name { font-family: 'ScaniaSansHeadline', var(--font); font-size: 17px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #fff; line-height: 1.2; min-height: 2.4em; display: flex; align-items: center; justify-content: center; }
-.cat-tile__check {
-  position: absolute; bottom: 14px; right: 14px;
-  width: 30px; height: 30px;
-  border-radius: 50%;
-  background: var(--teal);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 15px; color: #fff; font-weight: 700;
-  opacity: 0; transform: scale(.6);
-  transition: opacity .25s, transform .25s;
-}
-.cat-tile.is-done .cat-tile__check { opacity: 1; transform: scale(1); }
-.cat-tile__icon { width: clamp(36px, 9vh, 80px); height: clamp(36px, 9vh, 80px); object-fit: contain; flex-shrink: 0; opacity: 1; }
-@media (max-width: 480px) {
-  .cat-hub { grid-template-columns: 1fr; }
-}
-.cat-hub-submit { margin-top: 32px; }
-.hub-submit-btn {
-  display: inline-flex; align-items: center; gap: 10px;
-  padding: 16px 40px;
-  border-radius: 999px;
-  background: var(--teal);
-  color: #fff;
-  font-family: 'ScaniaSansHeadline', var(--font);
-  font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-  border: none; cursor: pointer;
-  transition: opacity .2s, transform .15s;
-}
-.hub-submit-btn:hover { opacity: .88; }
-.hub-submit-btn:active { transform: scale(.97); }
 
 /* Mercedes Actros — silver + black */
 body[data-cab-vehicle="mercedes-actros"] .bg-glow {
