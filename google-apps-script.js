@@ -137,8 +137,30 @@ function doPost(e) {
    det inom tidsfönstret den letade). timestamp sätts en gång per inskick
    och skickas med oförändrat vid ett omskick, så den fungerar som ett
    naturligt inskicks-ID — hittas en rad med samma timestamp redan i
-   Raw-arket är det med säkerhet samma inskick, inte en ny besökare. */
+   Raw-arket är det med säkerhet samma inskick, inte en ny besökare.
+
+   Låst med LockService: flera tablets (eller klientens egna omförsök av
+   samma inskick, se sheets.js) kan trigga doPost nästan samtidigt, och
+   Apps Script garanterar inte att sådana körningar seriellas åt sig
+   själva. Utan lås kan två körningar läsa samma rubrikrad innan någon av
+   dem hunnit skriva, lägga till sina egna nya kolumner var för sig och
+   sedan skriva varsin rad utifrån sin egen, redan inaktuella uppfattning
+   om kolumnordningen — samma sorts krock som den borttagna
+   kolumn-städningen orsakade, fast den här gången i själva
+   kolumn-tilläggs-steget istället. Låset gör att bara en körning i taget
+   får läsa+skriva rubrikraden och lägga till en rad, så nästa körning
+   alltid ser resultatet av den föregående. */
 function writeSubmission(ss, sheetName, headers, row, raw) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    writeSubmissionLocked(ss, sheetName, headers, row, raw);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
   const rawSheetName = 'Raw — ' + sheetName;
 
   if (raw && raw.timestamp && rawSheetHasTimestamp(ss, rawSheetName, raw.timestamp)) return;
@@ -483,6 +505,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'q-codes-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'write-lock-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
