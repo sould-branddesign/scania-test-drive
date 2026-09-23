@@ -14,7 +14,6 @@
   const _today = new Date(); let filterGroup = `${_today.getFullYear()}-${String(_today.getMonth()+1).padStart(2,'0')}-${String(_today.getDate()).padStart(2,'0')}`;   // default to today (local)
   let filterMarkets = new Set();  // empty = all markets
   let activeForm = new URLSearchParams(location.search).get('form') === 'cab' ? 'cab' : 'testdrive';
-  const CAB_VEHICLE_KEY = 'scania-cab-vehicle';
   const toIso = (s) => { const d = new Date(s); if (isNaN(d)) return s; const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const dy = String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dy}`; };
 
   function activeQuestions() { return activeForm === 'cab' ? state.cabQuestions : state.questions; }
@@ -49,10 +48,7 @@
     const link = document.getElementById('openTestLink');
     if (!link) return;
     if (activeForm === 'cab') {
-      const activeVehicleId = localStorage.getItem(CAB_VEHICLE_KEY) || '';
-      const vehicle = state.cabVehicles.find((v) => v.id === activeVehicleId);
-      const label = vehicle ? vehicle.name + ' cab assessment ↗' : 'Open cab assessment ↗';
-      link.textContent = label;
+      link.textContent = 'Open cab assessment ↗';
       link.href = 'cab.html';
     } else {
       link.innerHTML = 'Open test drive ↗';
@@ -154,10 +150,6 @@
     }
     wrap.appendChild(topRow);
     const evald = evaluatedVehicles();
-
-    if (activeForm === 'cab') {
-      wrap.appendChild(buildCabSetup());
-    }
 
     wrap.appendChild(h(`<div class="results__head">
       <div>
@@ -276,44 +268,6 @@
       if (a.dataset.act === 'present') openDeck();
     });
     app.appendChild(wrap);
-  }
-
-  function buildCabSetup() {
-    const active = localStorage.getItem(CAB_VEHICLE_KEY) || '';
-    const panel = h(`<div class="cab-setup">
-      <h3 class="cab-setup__title">iPad Setup — Cab Assessment</h3>
-      <p class="cab-setup__sub">Choose which vehicle is shown on the <a href="cab.html" target="_blank">cab.html</a> iPad. The iPad updates automatically.</p>
-      <div class="cab-setup__grid"></div>
-    </div>`);
-    const grid = $('.cab-setup__grid', panel);
-    state.cabVehicles.forEach((v) => {
-      const isActive = v.id === active;
-      const br = BRANDS[v.brand] || BRANDS.scania;
-      const bStyle = `--brand:${br.solid}${br.solidB ? ';--brand-b:' + br.solidB : ''}`;
-      const row = h(`<div class="cab-setup__row ${isActive ? 'is-active' : ''}">
-        <span class="vehicle" style="${bStyle}">${esc(v.name)}</span>
-        <button class="btn ${isActive ? '' : 'secondary'} cab-setup__btn" data-cab-set="${esc(v.id)}">${isActive ? '✓ Active' : 'Set active'}</button>
-      </div>`);
-      grid.appendChild(row);
-    });
-    panel.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-cab-set]');
-      if (!btn) return;
-      const id = btn.dataset.cabSet;
-      localStorage.setItem(CAB_VEHICLE_KEY, id);
-      const vname = state.cabVehicles.find((v) => v.id === id)?.name || id;
-      // refresh all rows
-      panel.querySelectorAll('.cab-setup__row').forEach((row) => {
-        const b = row.querySelector('[data-cab-set]');
-        const rowId = b?.dataset.cabSet;
-        const on = rowId === id;
-        row.classList.toggle('is-active', on);
-        if (b) { b.textContent = on ? '✓ Active' : 'Set active'; b.classList.toggle('secondary', !on); }
-      });
-      setFormTheme();
-      toast('iPad set to: ' + vname);
-    });
-    return panel;
   }
 
   function buildGroupSetter(container) {

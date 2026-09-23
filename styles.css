@@ -1059,17 +1059,6 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
 .form-btn.is-active { background: var(--teal); color: var(--navy-900); }
 body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
 
-/* Cab Assessment — iPad setup panel */
-.cab-setup { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 20px 24px; margin-bottom: 28px; }
-.cab-setup__title { font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 6px; }
-.cab-setup__sub { font-size: 12px; color: var(--ink-dim); margin: 0 0 18px; }
-.cab-setup__sub a { color: var(--teal); text-decoration: none; }
-.cab-setup__grid { display: flex; flex-direction: column; gap: 10px; }
-.cab-setup__row { display: flex; align-items: center; gap: 14px; justify-content: space-between; padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.02); transition: border-color .15s; }
-.cab-setup__row.is-active { border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.05); }
-.cab-setup__btn { flex-shrink: 0; font-size: 12px; padding: 6px 14px; }
-body.admin .cab-setup__row .vehicle { padding: 0 13px; font-size: 12px; min-height: unset; align-self: stretch; display: flex; align-items: center; cursor: default; pointer-events: none; }
-
 .empty {
   text-align: center;
   padding: 80px 20px;
@@ -1808,37 +1797,5 @@ body.admin[data-form="cab"] .topnav {
 body.admin[data-form="cab"] .topnav__tag {
   color: var(--teal);
   border-color: rgba(24, 200, 212, .4);
-}
-
-/* ============================================================
-   CAB ASSESSMENT — per-vehicle colour themes (direct on .bg-glow)
-   ============================================================ */
-
-/* Scania CR20H — teal */
-body[data-cab-vehicle="scania-cr20h"] .bg-glow {
-  background:
-    radial-gradient(55% 45% at var(--gx1) var(--gy1), rgba(24, 200, 212, .80), transparent 70%),
-    radial-gradient(45% 40% at var(--gx2) var(--gy2), rgba(0, 160, 180, .50), transparent 70%);
-}
-
-/* Volvo FH Aero — purple top + bright pink center */
-body[data-cab-vehicle="volvo-fh-aero"] .bg-glow {
-  background:
-    radial-gradient(70% 55% at 50% 5%, rgba(120, 40, 220, .90), transparent 70%),
-    radial-gradient(60% 55% at 45% 55%, rgba(220, 80, 200, .80), transparent 70%);
-}
-
-/* MAN TGX — orange */
-body[data-cab-vehicle="man-tgx"] .bg-glow {
-  background:
-    radial-gradient(55% 45% at var(--gx1) var(--gy1), rgba(230, 110, 20, .85), transparent 70%),
-    radial-gradient(45% 40% at var(--gx2) var(--gy2), rgba(60, 80, 200, .45), transparent 70%);
-}
-
-/* Mercedes Actros — silver + black */
-body[data-cab-vehicle="mercedes-actros"] .bg-glow {
-  background:
-    radial-gradient(55% 45% at var(--gx1) var(--gy1), rgba(194, 194, 194, .80), transparent 70%),
-    radial-gradient(45% 40% at var(--gx2) var(--gy2), rgba(20, 20, 20, .60), transparent 70%);
 }
 

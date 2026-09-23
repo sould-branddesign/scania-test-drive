@@ -1,18 +1,15 @@
 /* ============================================================
    SCANIA · CAB ASSESSMENT — kiosk page
-   Fixed vehicle (set by admin via localStorage).
-   Flow: intro → language → questions → thank you.
+   Flow: intro → language → vehicle hub → questions (per vehicle,
+   same shape as the Test Drive page) → back to hub → … → once
+   every vehicle is done, submit all of them at once → thank you.
    ============================================================ */
 (function () {
   'use strict';
   const { $, h, esc, BRANDS, LANGS, COUNTRIES, t, tCat, state, save } = window.STD;
 
-  const CAB_VEHICLE_KEY = 'scania-cab-vehicle';
-
-
   function getActiveVehicle() {
-    const id = localStorage.getItem(CAB_VEHICLE_KEY);
-    return id ? state.cabVehicles.find((v) => v.id === id) || null : null;
+    return state.cabVehicles.find((v) => v.id === ui.currentVehicle) || null;
   }
 
   /* computed fresh at submit time rather than read from state.group, which
@@ -21,7 +18,15 @@
      day it first picked up, mislabeling every submission after that. */
   function todayLabel() { return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
 
-  let ui = { view: 'intro', stepIndex: 0, draft: {} };
+  let ui = { view: 'intro', currentVehicle: null, stepIndex: 0, draftsByVehicle: {}, completedVehicles: new Set() };
+
+  /* the in-progress answers for whichever vehicle is currently being
+     evaluated — created on first touch so switching between vehicles in
+     the hub never mixes up or overwrites another vehicle's answers */
+  function activeDraft() {
+    if (!ui.draftsByVehicle[ui.currentVehicle]) ui.draftsByVehicle[ui.currentVehicle] = {};
+    return ui.draftsByVehicle[ui.currentVehicle];
+  }
   let noAnim = false;
 
   function enterFullscreen() {
@@ -41,81 +46,28 @@
   const app = $('#app');
 
   function go(view, opts = {}) {
-    if (autoRestartTimer) { clearInterval(autoRestartTimer); autoRestartTimer = null; }
     ui.view = view;
     if (opts.step !== undefined) ui.stepIndex = opts.step;
     render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  const BRAND_GLOW = {
-    scania:   ['rgba(7,169,158,.65)',   'rgba(1,152,195,.55)',   'rgba(7,169,158,.45)'],
-    volvo:    ['rgba(103,46,157,.65)',  'rgba(237,178,215,.50)', 'rgba(150,50,200,.35)'],
-    man:      ['rgba(230,110,20,.60)',  'rgba(60,80,200,.38)',   'rgba(230,110,20,.40)'],
-    mercedes: ['rgba(190,190,190,.55)', 'rgba(120,120,120,.45)', 'rgba(20,20,20,.55)'],
-  };
-
-  function applyGlow() {
-    const glow = document.querySelector('.bg-glow');
-    if (!glow) return;
-    if (ui.view !== 'intro') {
-      glow.style.background = 'none';
-      glow.style.filter = 'none';
-      return;
-    }
-    const vehicle = getActiveVehicle();
-    const cfg = vehicle && BRAND_GLOW[vehicle.brand];
-    const c1 = cfg ? cfg[0] : 'rgba(200,40,140,.50)';
-    const c2 = cfg ? cfg[1] : 'rgba(240,80,180,.38)';
-    const c3 = cfg ? cfg[2] : 'rgba(180,20,120,.28)';
-    if (glow.style.getPropertyValue('--glow-c1') === c1 && glow.style.filter !== 'none') return;
-    glow.style.setProperty('--glow-c1', c1);
-    glow.style.setProperty('--glow-c2', c2);
-    glow.style.setProperty('--glow-c3', c3);
-    glow.style.background = [
-      'radial-gradient(circle 55vmin at var(--gx1) var(--gy1),var(--glow-c1) 30%,transparent 70%)',
-      'radial-gradient(circle 50vmin at var(--gx2) var(--gy2),var(--glow-c2) 30%,transparent 70%)',
-      'radial-gradient(circle 52vmin at var(--gx3) var(--gy3),var(--glow-c3) 30%,transparent 70%)',
-    ].join(',');
-    glow.style.filter = 'blur(35px)';
-  }
-
   function render() {
     const oldEl = app.firstElementChild;
     if (oldEl) oldEl.style.display = 'none';
-    const vehicle = getActiveVehicle();
-    document.body.dataset.cabVehicle = ui.view === 'intro' && vehicle ? vehicle.id : '';
-    if (!vehicle) { viewUnconfigured(); if (oldEl) oldEl.remove(); return; }
-    ({ intro: viewIntro, language: viewLanguage, question: viewQuestion, thanks: viewThanks }[ui.view] || viewIntro)();
+    ({ intro: viewIntro, language: viewLanguage, vehicleHub: viewVehicleHub, question: viewQuestion, thanks: viewThanks }[ui.view] || viewIntro)();
     if (oldEl) oldEl.remove();
     const al = document.querySelector('.admin-link');
     if (al) al.style.display = ui.view === 'intro' ? '' : 'none';
     const rl = document.getElementById('restartBtn');
     if (rl) rl.style.display = (ui.view !== 'intro') ? 'block' : 'none';
     document.body.classList.toggle('is-intro', ui.view === 'intro');
-    applyGlow();
-  }
-
-  /* ---------- not configured ---------- */
-  function viewUnconfigured() {
-    app.appendChild(h(`<div class="cover">
-      ${LOGO}
-      <div class="cover__bottom">
-        <div class="cover__eyebrow">Sales Force Boost | 2026</div>
-        <h1 class="cover__title" style="font-size:clamp(28px,4vw,52px)">No vehicle<br>configured</h1>
-        <span class="cover__cta" style="opacity:.5">Set a vehicle from the admin page</span>
-      </div>
-    </div>`));
   }
 
   /* ---------- intro / cover ---------- */
   function viewIntro() {
-    const vehicle = getActiveVehicle();
-    const brand = vehicle ? BRANDS[vehicle.brand] : BRANDS.scania;
-    const bStyle = vehicle ? `--chip:${brand.solid}${brand.solidB ? ';--chip-b:' + brand.solidB : ''}` : '';
     const c = h(`<div class="cover" role="button" tabindex="0">
       ${LOGO}
-      <span class="vehicle-chip cover__chip-mid" data-brand="${vehicle ? vehicle.brand : ''}" style="${bStyle}">${esc(vehicle ? vehicle.name : '')}</span>
       <div class="cover__bottom">
         <div class="cover__eyebrow">Sales Force Boost | 2026</div>
         <h1 class="cover__title">Cab<br>Assessment</h1>
@@ -169,7 +121,7 @@
         state.lang = langSelect.value;
         state.country = countrySelect.value;
         save();
-        go('question', { step: 0 });
+        go('vehicleHub');
       } : null,
     }));
 
@@ -181,6 +133,36 @@
       };
     });
 
+    app.appendChild(s);
+  }
+
+  /* ---------- vehicle hub ---------- */
+  function viewVehicleHub() {
+    const s = screen();
+    s.appendChild(head());
+    const b = body();
+    b.appendChild(h(`<h1 class="screen__title">Welcome to the Cab Assessment.</h1>`));
+    const vehicleSection = h('<div class="vehicle-section"></div>');
+    vehicleSection.appendChild(h(`<p class="screen__label">Assess every vehicle — tap one to start:</p>`));
+    const grid = h('<div class="vgrid"></div>');
+    state.cabVehicles.forEach((v) => {
+      const done = ui.completedVehicles.has(v.id);
+      const br = BRANDS[v.brand];
+      const bStyle = `--brand:${br.solid}${br.solidB ? ';--brand-b:' + br.solidB : ''}`;
+      const el = h(`<button class="vehicle ${done ? 'is-selected' : ''}" data-brand="${v.brand}" style="${bStyle}">${done ? '✓ ' : ''}${esc(v.name)}</button>`);
+      el.onclick = () => { ui.currentVehicle = v.id; go('question', { step: 0 }); };
+      grid.appendChild(el);
+    });
+    vehicleSection.appendChild(grid);
+    b.appendChild(vehicleSection);
+    s.appendChild(b);
+
+    const allDone = state.cabVehicles.every((v) => ui.completedVehicles.has(v.id));
+    s.appendChild(foot({
+      back: () => go('language'),
+      next: allDone ? () => confirmSubmit(submitAllEvaluations) : null,
+      nextLabel: allDone ? t().submit : false,
+    }));
     app.appendChild(s);
   }
 
@@ -223,9 +205,10 @@
     qHead.appendChild(qText);
     b.appendChild(qHead);
 
+    const draft = activeDraft();
     const wrap = h('<div class="question-metrics-cab"></div>');
     cat.metrics.forEach((m) => {
-      const val = ui.draft[m.id] != null ? ui.draft[m.id] : 0;
+      const val = draft[m.id] != null ? draft[m.id] : 0;
       const scale = m.scale || 10;
       const metric = h(`<div class="metric">
         <div class="metric__top">
@@ -238,7 +221,7 @@
       const input = $('.slider', metric);
       const valEl = $('.metric__value', metric);
       const paint = () => { const pct = (input.value / scale) * 100; input.style.background = `linear-gradient(90deg, ${brand.text || brand.solid} ${pct}%, var(--navy-700) ${pct}%)`; };
-      input.oninput = () => { ui.draft[m.id] = Number(input.value); valEl.textContent = `${input.value}/${scale}`; paint(); };
+      input.oninput = () => { draft[m.id] = Number(input.value); valEl.textContent = `${input.value}/${scale}`; paint(); };
       paint();
       wrap.appendChild(metric);
     });
@@ -247,9 +230,9 @@
 
     const isLast = ui.stepIndex === total - 1;
     s.appendChild(foot({
-      back: () => ui.stepIndex === 0 ? go('language') : go('question', { step: ui.stepIndex - 1 }),
-      next: isLast ? () => confirmSubmit(submitEvaluation) : () => go('question', { step: ui.stepIndex + 1 }),
-      nextLabel: isLast ? t().submit : t().next,
+      back: () => ui.stepIndex === 0 ? go('vehicleHub') : go('question', { step: ui.stepIndex - 1 }),
+      next: isLast ? () => { ui.completedVehicles.add(ui.currentVehicle); go('vehicleHub'); } : () => go('question', { step: ui.stepIndex + 1 }),
+      nextLabel: isLast ? (t().done || 'Done') : t().next,
     }));
     app.appendChild(s);
   }
@@ -283,55 +266,57 @@
     };
   }
 
-  function submitEvaluation() {
-    const vehicle = getActiveVehicle();
-    if (!vehicle) return;
+  /* Submits every completed vehicle's evaluation as its own row, in one
+     go once the whole hub is checked off. Each gets its own timestamp
+     offset by index (rather than calling new Date() fresh each time) so
+     two submissions built back-to-back in this loop can never land on
+     the exact same millisecond — that timestamp is the backend's
+     idempotency key (see writeSubmission in google-apps-script.js), and
+     a collision there would make it treat a real second vehicle's
+     submission as a duplicate resend of the first and silently drop it. */
+  function submitAllEvaluations() {
     if (window.STDSheets) {
-      window.STDSheets.submit({
-        timestamp: new Date().toISOString(),
-        lang: state.lang,
-        country: state.country || '',
-        group: todayLabel(),
-        formId: 'cab',
-        vehicleId: vehicle.id,
-        vehicleName: vehicle.name,
-        vehicleBrand: vehicle.brand,
-        questions: state.cabQuestions,
-        answers: ui.draft,
+      const baseTime = Date.now();
+      let i = 0;
+      state.cabVehicles.forEach((v) => {
+        if (!ui.completedVehicles.has(v.id)) return;
+        window.STDSheets.submit({
+          timestamp: new Date(baseTime + i).toISOString(),
+          lang: state.lang,
+          country: state.country || '',
+          group: todayLabel(),
+          formId: 'cab',
+          vehicleId: v.id,
+          vehicleName: v.name,
+          vehicleBrand: v.brand,
+          questions: state.cabQuestions,
+          answers: ui.draftsByVehicle[v.id] || {},
+        });
+        i++;
       });
     }
     go('thanks');
   }
 
   /* ---------- thank you ---------- */
-  let autoRestartTimer = null;
-
   function viewThanks() {
-    const vehicle = getActiveVehicle();
     const s = screen('thanks');
     s.appendChild(head());
     const wrap = h(`<div class="thanks__wrap">
       <h1 class="thanks__title">${t().thanks}</h1>
-      <p class="thanks__msg">${esc(t().submitted(vehicle ? vehicle.name : ''))}</p>
-      <p class="thanks__countdown" id="thanksCountdown"></p>
+      <p class="thanks__msg">Your Cab Assessment ratings for all vehicles have been submitted.</p>
+      <div class="thanks__btns">
+        <button class="pill" data-act="next">Done</button>
+      </div>
     </div>`);
+    $('[data-act="next"]', wrap).onclick = () => {
+      ui.currentVehicle = null; ui.draftsByVehicle = {}; ui.completedVehicles = new Set();
+      go('intro');
+    };
     const b = body();
     b.appendChild(wrap);
     s.appendChild(b);
     app.appendChild(s);
-
-    let remaining = 10;
-    const countdownEl = document.getElementById('thanksCountdown');
-    const tick = () => { if (countdownEl) countdownEl.textContent = t().restarting(remaining); };
-    tick();
-    autoRestartTimer = setInterval(() => {
-      remaining--;
-      tick();
-      if (remaining <= 0) {
-        clearInterval(autoRestartTimer);
-        ui.draft = {}; go('intro');
-      }
-    }, 1000);
   }
 
   /* ---------- shared bits ---------- */
@@ -352,7 +337,7 @@
   }
 
   window.addEventListener('storage', (e) => {
-    if (e.key === window.STD.STORE_KEY || e.key === CAB_VEHICLE_KEY) {
+    if (e.key === window.STD.STORE_KEY) {
       window.STD.load();
       if (ui.view === 'intro' || ui.view === 'language') render();
     }
@@ -379,7 +364,8 @@
   const restartBtn = document.getElementById('restartBtn');
   if (restartBtn) {
     restartBtn.onclick = () => {
-      ui.draft = {}; state.lang = 'en'; state.country = ''; save();
+      ui.currentVehicle = null; ui.draftsByVehicle = {}; ui.completedVehicles = new Set();
+      state.lang = 'en'; state.country = ''; save();
       noAnim = true; go('intro'); noAnim = false;
     };
   }
