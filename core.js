@@ -90,7 +90,11 @@
   ].map((name) => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
 
   const DEFAULT_CAB_QUESTIONS = [
-    { id: 'boarding', title: 'Boarding & Exiting', instruction: 'Climb into and exit the cab. Assess the upper step visibility from above and overall ease of entry and exit.', metrics: [{ id: 'boarding_ease', label: 'Ease of boarding & exiting', min: 'Very difficult', max: 'Very easy', scale: 10 }] },
+    { id: 'boarding', title: 'Cab Entry', instruction: "Enter the cab from the driver's side, with the second person carrying the tablet. Climb in and settle into position — tablet holder on the bed, first person in the passenger seat.", metrics: [
+      { id: 'boarding_ease', label: 'Ease of boarding & exiting', min: 'Very difficult', max: 'Very easy', scale: 10 },
+      { id: 'door_interference', label: 'Door interference while climbing in', min: 'Very interfering', max: 'No interference', scale: 10 },
+      { id: 'cab_crossing_ease', label: 'Ease of moving across the cab', min: 'Very difficult', max: 'Very easy', scale: 10 },
+    ] },
     { id: 'ergonomics', title: 'Ergonomics & Reachability', instruction: "Seated in driver's position: rate reachability of key controls, info display, and logical grouping of functions.", metrics: [{ id: 'ergonomics_overall', label: 'Overall ergonomics impression', min: 'Poor', max: 'Very good', scale: 10 }, { id: 'info_display', label: 'Info display', min: 'Poor', max: 'Very good', scale: 10 }] },
     { id: 'fit_finish', title: 'Fit & Finish', instruction: 'Evaluate material quality, color matching between surfaces, and consistency of panel gaps.', metrics: [{ id: 'overall_finish', label: 'Overall finish', min: 'Poor', max: 'Premium', scale: 10 }] },
     { id: 'safety', title: 'Safety & Direct Vision', instruction: "Assess direct field of vision. Props are placed at marked floor positions — note which are visible from the driver's seat.", metrics: [{ id: 'direct_vision', label: 'Direct vision — front & sides', min: 'Very limited', max: 'Excellent', scale: 10 }, { id: 'mirror_visibility', label: 'Side mirror visibility', min: 'Blocked', max: 'Clear', scale: 10 }] },
