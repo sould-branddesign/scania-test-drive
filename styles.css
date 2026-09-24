@@ -1474,7 +1474,7 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   /* vehicle grid */
   .vehicle-section { margin-top: 100px; }
   .vgrid { gap: 20px 16px; margin-top: 16px; }
-  .vehicle { font-size: 14px; padding: 14px 16px; min-height: 48px; max-height: 56px; display: flex; align-items: center; justify-content: center; }
+  .vehicle { font-size: 14px; letter-spacing: .4px; padding: 10px 6px; min-height: 48px; max-height: 56px; display: flex; align-items: center; justify-content: center; }
   .group-row .vehicle { font-size: 11px; padding: 8px 10px; min-height: unset; }
   .vehicle-chip { font-size: 14px; padding: 0 20px; height: 32px; }
   .screen__head { min-height: 60px; }   /* 32px (.vehicle-chip height on tablet) + 14px+14px padding */

@@ -34,13 +34,22 @@
   };
 
   /* ---------- default vehicles (from the "choose vehicle" screen) ---------- */
+  /* Listed as (Scania, competitor) pairs so the 2-column vehicle grid
+     naturally puts every Scania in the left column and every competitor
+     in the right one (CSS grid fills left-to-right, row by row — see
+     .vgrid). "Scania 40S A4X2NB" is the same spec run against two
+     different competitors (Mercedes eActros and the Volvo FH electric),
+     so it's deliberately listed twice, once beside each — both list
+     entries end up with the identical id (derived from the name below),
+     so answers submitted from either tile land under the same vehicle
+     in the results, exactly as if it were one button. */
   const DEFAULT_VEHICLES = [
-    'Scania 606 40S', 'Mercedes eActros',
-    'Scania 516 500R', 'Volvo FH Aero',
-    'Scania 612 460R', 'MAN TGX',
-    'Scania 610 560S', 'DAF XG+ 480',
-    'Scania 601 33R', 'Volvo FH Electric',
-    'Scania CS20H', 'Mercedes Actros',
+    'Scania 40S A4X2NB', 'Mercedes eActros 600 LS 4x2',
+    'Scania 500R A6X2/4NB', 'Volvo FH Aero 510 4x2',
+    'Scania 460R A4X2NA', 'MAN TGX 18.480 BLS Euro 6e',
+    'Scania 560S A4X2NB', 'DAF XG+ 480 FT 4x2 E6e',
+    'Scania 40S A4X2NB', 'Volvo FH electric 4x2',
+    'Scania 500R A4x2LB', 'Mercedes Actros 1851 LS 4x2 E6',
   ].map((name) => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
 
   /* ---------- default questions (the 5 evaluation steps) ---------- */
@@ -127,7 +136,6 @@
     { code: 'fi', label: 'Finnish / Suomi' },
     { code: 'fr', label: 'French / Français' },
     { code: 'hu', label: 'Hungarian / Magyar' },
-    { code: 'is', label: 'Icelandic / Íslenska' },
     { code: 'it', label: 'Italian / Italiano' },
     { code: 'lv', label: 'Latvian / Latviešu' },
     { code: 'lt', label: 'Lithuanian / Lietuvių' },
@@ -145,7 +153,7 @@
 
   const COUNTRIES = [
     'Belgium','Bulgaria','Czech Republic','Denmark','Estonia','Finland',
-    'France','Hungary','Iceland','Ireland','Israel','Italy',
+    'France','Hungary','Ireland','Israel','Italy',
     'Latvia','Lithuania','Luxembourg',
     'Norway','Poland','Portugal','Romania',
     'Serbia','Slovakia','Slovenia','Spain','Sweden','Switzerland',
