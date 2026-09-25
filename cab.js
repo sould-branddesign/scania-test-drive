@@ -90,13 +90,7 @@
     const wrap = h('<div class="lang-select-wrap"></div>');
 
     const langLabel = h('<p class="screen__label">Language</p>');
-    const langSelect = h('<select class="std-select"></select>');
-    langSelect.appendChild(h('<option value="">— Select language —</option>'));
-    LANGS.forEach(({ code, label }) => {
-      const opt = h(`<option value="${esc(code)}">${esc(label)}</option>`);
-      if (state.lang === code) opt.selected = true;
-      langSelect.appendChild(opt);
-    });
+    const langPicker = buildLangPicker();
 
     const countryLabel = h('<p class="screen__label">Market</p>');
     const countrySelect = h('<select class="std-select"></select>');
@@ -108,32 +102,69 @@
     });
 
     wrap.appendChild(langLabel);
-    wrap.appendChild(langSelect);
+    wrap.appendChild(langPicker);
     wrap.appendChild(countryLabel);
     wrap.appendChild(countrySelect);
     b.appendChild(wrap);
     s.appendChild(b);
 
-    const canNext = () => langSelect.value && countrySelect.value;
+    const canNext = () => state.lang && countrySelect.value;
     s.appendChild(foot({
       back: () => go('intro'),
       next: canNext() ? () => {
-        state.lang = langSelect.value;
         state.country = countrySelect.value;
         save();
         go('vehicleHub');
       } : null,
     }));
 
-    [langSelect, countrySelect].forEach((sel) => {
-      sel.onchange = () => {
-        state.lang = langSelect.value || state.lang;
-        state.country = countrySelect.value || state.country;
-        noAnim = true; render(); noAnim = false;
-      };
-    });
+    countrySelect.onchange = () => {
+      state.country = countrySelect.value || state.country;
+      noAnim = true; render(); noAnim = false;
+    };
 
     app.appendChild(s);
+  }
+
+  /* Custom dropdown standing in for a native <select> — only because a
+     native <option> can't show the "AI-translated" icon next to a
+     language's name (browsers render <option> as plain text, no
+     markup). English and Swedish are excluded: those are translated by
+     hand, not by AI. */
+  const AI_TRANSLATED_ICON = 'assets/lang-ai.svg?v=1';
+  function buildLangPicker() {
+    const current = LANGS.find((l) => l.code === state.lang);
+    const picker = h('<div class="lang-picker"></div>');
+    const trigger = h(`<button type="button" class="std-select lang-picker__trigger">${esc(current ? current.label : '— Select language —')}</button>`);
+    const list = h('<div class="lang-picker__list" hidden></div>');
+
+    function closeList() { list.hidden = true; document.removeEventListener('click', onDocClick, true); }
+    function onDocClick(e) { if (!picker.contains(e.target)) closeList(); }
+
+    trigger.onclick = (e) => {
+      e.stopPropagation();
+      if (list.hidden) { list.hidden = false; document.addEventListener('click', onDocClick, true); }
+      else closeList();
+    };
+
+    LANGS.forEach(({ code, label }) => {
+      const showAi = code !== 'en' && code !== 'sv';
+      const opt = h(`<button type="button" class="lang-picker__opt ${state.lang === code ? 'is-selected' : ''}">
+        <span>${esc(label)}</span>
+        ${showAi ? `<img class="lang-picker__ai" src="${AI_TRANSLATED_ICON}" alt="AI-translated" title="AI-translated">` : ''}
+      </button>`);
+      opt.onclick = () => {
+        closeList();
+        state.lang = code;
+        save();
+        noAnim = true; render(); noAnim = false;
+      };
+      list.appendChild(opt);
+    });
+
+    picker.appendChild(trigger);
+    picker.appendChild(list);
+    return picker;
   }
 
   /* ---------- vehicle hub ---------- */
