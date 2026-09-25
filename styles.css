@@ -677,11 +677,12 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
 .lang-picker__opt.is-selected { background: rgba(24,200,212,.16); color: var(--teal); }
 .lang-picker__ai {
   flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #fff;
-  padding: 2px;
+  width: 28px;
+  height: 28px;
+  /* the source SVG is drawn in dark navy (for a light background) —
+     force it to solid white so it reads against this dark dropdown
+     instead of swapping in a separate light/dark asset */
+  filter: brightness(0) invert(1);
 }
 .std-select {
   width: 100%;

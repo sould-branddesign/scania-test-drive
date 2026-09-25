@@ -93,35 +93,20 @@
     const langPicker = buildLangPicker();
 
     const countryLabel = h('<p class="screen__label">Market</p>');
-    const countrySelect = h('<select class="std-select"></select>');
-    countrySelect.appendChild(h('<option value="">— Select market —</option>'));
-    COUNTRIES.forEach((c) => {
-      const opt = h(`<option value="${esc(c)}">${esc(c)}</option>`);
-      if (state.country === c) opt.selected = true;
-      countrySelect.appendChild(opt);
-    });
+    const countryPicker = buildMarketPicker();
 
     wrap.appendChild(langLabel);
     wrap.appendChild(langPicker);
     wrap.appendChild(countryLabel);
-    wrap.appendChild(countrySelect);
+    wrap.appendChild(countryPicker);
     b.appendChild(wrap);
     s.appendChild(b);
 
-    const canNext = () => state.lang && countrySelect.value;
+    const canNext = () => state.lang && state.country;
     s.appendChild(foot({
       back: () => go('intro'),
-      next: canNext() ? () => {
-        state.country = countrySelect.value;
-        save();
-        go('vehicleHub');
-      } : null,
+      next: canNext() ? () => { save(); go('vehicleHub'); } : null,
     }));
-
-    countrySelect.onchange = () => {
-      state.country = countrySelect.value || state.country;
-      noAnim = true; render(); noAnim = false;
-    };
 
     app.appendChild(s);
   }
@@ -131,7 +116,7 @@
      language's name (browsers render <option> as plain text, no
      markup). English and Swedish are excluded: those are translated by
      hand, not by AI. */
-  const AI_TRANSLATED_ICON = 'assets/lang-ai.svg?v=1';
+  const AI_TRANSLATED_ICON = 'assets/lang-ai.svg?v=2';
   function buildLangPicker() {
     const current = LANGS.find((l) => l.code === state.lang);
     const picker = h('<div class="lang-picker"></div>');
@@ -156,6 +141,39 @@
       opt.onclick = () => {
         closeList();
         state.lang = code;
+        save();
+        noAnim = true; render(); noAnim = false;
+      };
+      list.appendChild(opt);
+    });
+
+    picker.appendChild(trigger);
+    picker.appendChild(list);
+    return picker;
+  }
+
+  /* Same custom-dropdown treatment as the language picker above, just for
+     visual consistency — the market list has no icon to show, a native
+     <select> would work here too. */
+  function buildMarketPicker() {
+    const picker = h('<div class="lang-picker"></div>');
+    const trigger = h(`<button type="button" class="std-select lang-picker__trigger">${esc(state.country || '— Select market —')}</button>`);
+    const list = h('<div class="lang-picker__list" hidden></div>');
+
+    function closeList() { list.hidden = true; document.removeEventListener('click', onDocClick, true); }
+    function onDocClick(e) { if (!picker.contains(e.target)) closeList(); }
+
+    trigger.onclick = (e) => {
+      e.stopPropagation();
+      if (list.hidden) { list.hidden = false; document.addEventListener('click', onDocClick, true); }
+      else closeList();
+    };
+
+    COUNTRIES.forEach((c) => {
+      const opt = h(`<button type="button" class="lang-picker__opt ${state.country === c ? 'is-selected' : ''}"><span>${esc(c)}</span></button>`);
+      opt.onclick = () => {
+        closeList();
+        state.country = c;
         save();
         noAnim = true; render(); noAnim = false;
       };
