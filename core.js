@@ -126,12 +126,16 @@
   ];
 
   /* ---------- i18n for UI chrome (test page) ---------- */
+  /* English and Swedish first — the two that are hand-translated, not
+     AI (see the "AI-translated" icon in the language picker, which
+     skips exactly these two) — everything else follows alphabetically. */
   const LANGS = [
+    { code: 'en', label: 'English' },
+    { code: 'sv', label: 'Swedish / Svenska' },
     { code: 'bg', label: 'Bulgarian / Български' },
     { code: 'cs', label: 'Czech / Čeština' },
     { code: 'da', label: 'Danish / Dansk' },
     { code: 'nl', label: 'Dutch / Nederlands' },
-    { code: 'en', label: 'English' },
     { code: 'et', label: 'Estonian / Eesti' },
     { code: 'fi', label: 'Finnish / Suomi' },
     { code: 'fr', label: 'French / Français' },
@@ -147,7 +151,6 @@
     { code: 'sk', label: 'Slovak / Slovenčina' },
     { code: 'sl', label: 'Slovenian / Slovenščina' },
     { code: 'es', label: 'Spanish / Español' },
-    { code: 'sv', label: 'Swedish / Svenska' },
     { code: 'uk', label: 'Ukrainian / Українська' },
   ];
 
@@ -491,7 +494,15 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (!raw) { seedDemo(); return; }
       const d = JSON.parse(raw);
-      state.lang = d.lang || 'en';
+      /* Always start a fresh load in English, regardless of what the
+         last visitor had it set to — a kiosk reload (or simply someone
+         new walking up after the tablet went idle) should never greet
+         the next person in whoever-was-last's language. Only country is
+         restored, and only within a session does state.lang actually
+         change (the language picker, and the explicit Restart button
+         both set it directly, in memory — this only governs what a
+         fresh load() starts from). */
+      state.lang = 'en';
       state.country = d.country || '';
       const today = new Date().toISOString().slice(0, 10);
       state.group = d.group || today;
