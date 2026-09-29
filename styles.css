@@ -470,6 +470,10 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   letter-spacing: 0.07px;
   line-height: 1.2;
   margin: 34px 0 0;
+  /* Instruction text is edited in a <textarea> in admin, where line breaks
+     are visible — without this, the browser's default whitespace handling
+     silently collapses those \n characters back into one line here. */
+  white-space: pre-line;
 }
 @media (max-width: 600px) {
   .question-head { flex-direction: column; align-items: stretch; margin-top: 26px; }
