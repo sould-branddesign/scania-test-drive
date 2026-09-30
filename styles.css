@@ -1594,19 +1594,21 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   .vgrid { gap: 8px 11px; }
   .vehicle { padding: 7px 8px; }
   .screen__foot { margin-top: 16px; }
+  /* Moved the question head up (40.5px → 16px) to free up room for a
+     question-to-slider gap that's the same fixed size on every question,
+     instead of the roomy ~81px default some categories got and the cramped
+     16px others needed to avoid overlapping the footer. */
+  body.test .screen__body .question-head { margin-top: 16px; }
+  body.test .screen__body .question-metrics-cab,
+  body.test .screen__body .question-metrics { margin-top: 36px; }
   /* A Cab Assessment category with 2+ sliders and a long instruction (e.g.
-     an admin-edited "Cab Entry" or "Driver ergonomics") ran its last slider
-     under the footer buttons on the iPad 9th gen's exact 1080x810 landscape
-     viewport — measured overlaps of up to 156px at that size, on both a
-     3-metric and a 2-metric category. Tighten every stage of the vertical
-     stack below the question head whenever a 2nd metric is present — the
-     question head itself keeps the same margin-top as every other question,
-     so the gap under the progress bar never changes between categories. */
+     an admin-edited "Cab Entry" or "Driver ergonomics") still needed its
+     icon, instruction and inter-slider spacing tightened further on top of
+     the above to fit above the footer on the iPad 9th gen's exact 1080x810
+     landscape viewport — measured overlaps of up to 156px before these. */
   body.test .screen__body:has(.metric:nth-of-type(2)) .question-icon,
   body.test .screen__body:has(.metric:nth-of-type(2)) .route-icon { width: 70px; height: 70px; }
   body.test .screen__body:has(.metric:nth-of-type(2)) .screen__sub { font-size: 14px; line-height: 1.3; margin-top: 8px; }
-  body.test .screen__body:has(.metric:nth-of-type(2)) .question-metrics-cab,
-  body.test .screen__body:has(.metric:nth-of-type(2)) .question-metrics { margin-top: 16px; }
   body.test .screen__body:has(.metric:nth-of-type(2)) .metric { margin-bottom: 14px; }
   body.test .screen { padding: 12px clamp(28px,6vw,80px) 12px; --pad-x: clamp(28px,6vw,80px); --pad-top: 12px; }
   body.test .screen__title { margin-top: 0; }
@@ -1630,16 +1632,17 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   body.test .screen__body:has(> .question-head) { justify-content: flex-start; padding-bottom: 0; }
   /* Fixed distance from the progress bar to the question, the same on every
      question regardless of how many sliders or how long the instruction is —
-     moved up from 15vh per feedback that it sat too far down. */
-  body.test .screen__body .question-head { margin-top: 10vh; }
+     moved up further (15vh → 10vh → 8vh) to leave room for a bigger,
+     consistent question-to-slider gap below without crowding the footer. */
+  body.test .screen__body .question-head { margin-top: 8vh; }
   /* A Cab Assessment category with a 3rd slider (e.g. an admin-edited "Cab
      Entry" with three metrics) pushed its last slider's end-labels under the
      footer buttons at the iPad 9th gen's exact 810x1080 portrait size —
-     confirmed by measuring a 23px overlap at that size. Tighten the sliders'
-     own spacing only when a third metric is actually present — the question
-     head above keeps the same margin-top as every other question. */
-  body.test .screen__body:has(.metric:nth-of-type(3)) .question-metrics-cab,
-  body.test .screen__body:has(.metric:nth-of-type(3)) .question-metrics { margin-top: 40px; }
+     confirmed by measuring a 23px overlap at that size. Tighten only the
+     gap between sliders when a third metric is present — the gap from the
+     question down to the first slider (question-metrics-cab/question-metrics
+     margin-top) stays the same shared value as every other question, per
+     feedback that the 3-slider category's tighter gap there stood out. */
   body.test .screen__body:has(.metric:nth-of-type(3)) .metric { margin-bottom: 28px; }
 }
 
