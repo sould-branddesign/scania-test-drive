@@ -181,9 +181,15 @@ function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
      sometimes doesn't. Kept as a fast-path alongside the scan, not a
      replacement: the cache entry expires after 6h (its own maximum) and a
      fresh container has none yet, so the Raw sheet remains the durable,
-     authoritative record either way. */
+     authoritative record either way.
+
+     Keyed by spreadsheet ID as well as sheet name + timestamp — this
+     function runs once for the main spreadsheet and once for the backup
+     one (see doPost), and without ss.getId() in the key, the main
+     write's cache entry made the backup write's check think it had
+     already run and skip it entirely, silently breaking the mirror. */
   const cache = CacheService.getScriptCache();
-  const cacheKey = 'dedupe:' + sheetName + ':' + (raw && raw.timestamp);
+  const cacheKey = 'dedupe:' + ss.getId() + ':' + sheetName + ':' + (raw && raw.timestamp);
   if (raw && raw.timestamp && cache.get(cacheKey)) return;
 
   if (raw && raw.timestamp && rawSheetHasTimestamp(ss, rawSheetName, raw.timestamp)) return;
@@ -209,8 +215,17 @@ function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
 
   const lastCol = sheet.getLastColumn();
   const lastRow = sheet.getLastRow();
+  /* .map(String) matters: a bare-number code like "6" (a single-metric
+     category's code has no letter suffix — see assignCodes in core.js)
+     gets auto-parsed into the actual number 6 by Sheets' default cell
+     formatting once written below, even though it was set as the string
+     "6". Left uncoerced, existingHeaders.includes(h) then compares that
+     number against the always-string codes in `headers`, never matches,
+     and appends a fresh duplicate "6" column on every subsequent
+     submission — which is exactly the column duplication seen in
+     production for every single-digit-coded category. */
   let existingHeaders = (lastRow >= 1 && lastCol >= 1)
-    ? sheet.getRange(1, 1, 1, lastCol).getValues()[0]
+    ? sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(String)
     : [];
 
   /* NOTE: this used to also delete columns not present in `headers`, on
@@ -233,7 +248,11 @@ function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
       existingHeaders.push(h);
       const col = existingHeaders.length;
       const cell = sheet.getRange(1, col);
-      cell.setValue(h).setFontWeight('bold').setBackground('#02102c').setFontColor('#ffffff');
+      /* Plain-text format BEFORE setValue — otherwise a bare-number code
+         like "6" gets auto-parsed into the number 6 by Sheets' default
+         formatting, which is the root cause of the duplicate-column bug
+         the .map(String) above now also guards against on the read side. */
+      cell.setNumberFormat('@').setValue(h).setFontWeight('bold').setBackground('#02102c').setFontColor('#ffffff');
     }
   });
   sheet.setFrozenRows(1);
@@ -453,7 +472,12 @@ function repairReadableSheet(sheetName) {
   const sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
   sheet.clearContents();
 
-  sheet.getRange(1, 1, 1, headers.length).setValues([headers])
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  /* Plain-text format BEFORE setValues — same reason as in
+     writeSubmissionLocked: a bare-number code like "6" would otherwise be
+     auto-parsed into the number 6 by Sheets' default formatting, which is
+     the root cause this whole repair is cleaning up after. */
+  headerRange.setNumberFormat('@').setValues([headers])
     .setFontWeight('bold').setBackground('#02102c').setFontColor('#ffffff');
   sheet.setFrozenRows(1);
 
@@ -534,6 +558,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'dedupe-cache-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'backup-dedupe-fix-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
