@@ -227,6 +227,16 @@
     cab_exit: 'assets/icons/cab-exit.svg?v=1',
   };
 
+  /* splits a "Main title - Subtitle" category title at its dash so it wraps
+     onto exactly two lines next to the icon (portrait only, via CSS — see
+     .title-break) instead of the browser picking its own word-wrap point,
+     which could land mid-phrase or run to a third line on a long title. */
+  function splitTitleAtDash(title) {
+    const m = title.match(/^(.*?)\s+([-–].*)$/);
+    if (!m) return esc(title);
+    return `${esc(m[1])}<span class="title-break"> ${esc(m[2])}</span>`;
+  }
+
     /* ---------- question step ---------- */
   function viewQuestion() {
     const vehicle = getActiveVehicle();
@@ -250,20 +260,22 @@
 
     const b = body();
     const questionIcon = CAT_ICONS[cat.id];
+    /* the icon sits beside just the title here (not the whole instruction
+       block) — the instruction text runs full-width underneath, so a long
+       multi-sentence instruction (e.g. "Cab Entry") gets the whole column
+       to wrap into instead of a narrower one shared with the icon. */
     const qHead = h('<div class="question-head question-head--cab"></div>');
     if (questionIcon) qHead.appendChild(h(`<img class="question-icon" src="${questionIcon}" alt="" aria-hidden="true">`));
-    const qText = h('<div class="question-head__text"></div>');
-    qText.appendChild(h(`<h1 class="screen__title">${esc(cat.title)}</h1>`));
+    qHead.appendChild(h(`<h1 class="screen__title">${splitTitleAtDash(cat.title)}</h1>`));
+    b.appendChild(qHead);
     if (cat.instruction) {
       /* each admin-authored line gets its own <p> so the browser's line-
          wrapping (and orphan-avoidance) treats it as its own paragraph,
          instead of one giant block where a short line can wrap oddly
          mid-sentence. */
       const lines = cat.instruction.split('\n').filter((line) => line.trim());
-      qText.appendChild(h(`<div class="screen__sub-group">${lines.map((line) => `<p class="screen__sub">${esc(line)}</p>`).join('')}</div>`));
+      b.appendChild(h(`<div class="screen__sub-group">${lines.map((line) => `<p class="screen__sub">${esc(line)}</p>`).join('')}</div>`));
     }
-    qHead.appendChild(qText);
-    b.appendChild(qHead);
 
     const draft = activeDraft();
     const wrap = h('<div class="question-metrics-cab"></div>');
