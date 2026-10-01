@@ -163,6 +163,29 @@ function writeSubmission(ss, sheetName, headers, row, raw) {
 function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
   const rawSheetName = 'Raw — ' + sheetName;
 
+  /* Fast, cache-backed duplicate check, ahead of the Raw-sheet scan below.
+     A kiosk tablet on a slow connection can leave sheets.js's own POST
+     hanging past its 20s "give Sheets time to catch up" grace window —
+     the client then resubmits via reconcile() while the first POST is
+     still in flight, so two executions can legitimately both reach this
+     lock-protected function for the SAME submission, one right after the
+     other. The lock already makes them run one-at-a-time — the actual gap
+     this closes is that SpreadsheetApp reads aren't guaranteed to reflect
+     another execution's just-committed write immediately (Sheets' own
+     propagation, independent of the script lock), so the second
+     execution's scan of the Raw sheet could still miss a row the first
+     one finished writing moments earlier. CacheService is Google's
+     purpose-built layer for exactly this — sharing short-lived state
+     across script executions with much tighter read-after-write latency
+     than the Spreadsheet itself — so it catches the race the sheet scan
+     sometimes doesn't. Kept as a fast-path alongside the scan, not a
+     replacement: the cache entry expires after 6h (its own maximum) and a
+     fresh container has none yet, so the Raw sheet remains the durable,
+     authoritative record either way. */
+  const cache = CacheService.getScriptCache();
+  const cacheKey = 'dedupe:' + sheetName + ':' + (raw && raw.timestamp);
+  if (raw && raw.timestamp && cache.get(cacheKey)) return;
+
   if (raw && raw.timestamp && rawSheetHasTimestamp(ss, rawSheetName, raw.timestamp)) return;
 
   /* Convert Timestamp (UTC ISO, e.g. "2026-09-21T09:05:23.456Z") to
@@ -231,6 +254,12 @@ function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
     }
     rawSheet.appendRow([JSON.stringify(raw)]);
   }
+
+  /* Mark this submission as handled for the fast-path check above —
+     6 hours (CacheService's own ceiling) is far longer than any resubmit
+     delay sheets.js would realistically produce, and the Raw-sheet scan
+     still backstops it once the cache entry eventually expires. */
+  if (raw && raw.timestamp) cache.put(cacheKey, '1', 21600);
 }
 
 /* Har en rad med exakt denna timestamp redan skrivits till Raw-arket?
@@ -505,6 +534,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'write-lock-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'dedupe-cache-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
