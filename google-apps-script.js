@@ -22,6 +22,16 @@
  * misslyckas (t.ex. fel ID, indraget delning) påverkas inte det vanliga
  * inskicket — appen ser fortfarande ett lyckat resultat.
  *
+ * DAGLIG KONTROLL: en tyst, automatisk kontroll av precis de tre sakerna
+ * som gått fel förut — ett svar registrerat två gånger, dubbla
+ * kolumnrubriker, eller backup-arket som halkat efter — mejlas till
+ * ALERT_EMAIL nedan bara om den faktiskt hittar något (en ren dag ger
+ * inget mejl alls). Kräver EN engångskörning för att sätta igång:
+ * 6. Välj "setupDailyHealthCheckTrigger" i funktionslistan högst upp i
+ *    Apps Script-redigeraren och klicka Kör. Google ber om ett nytt
+ *    behörighetsgodkännande (för att få skicka e-post) — godkänn det.
+ *    Behöver bara göras en gång, inte om igen vid varje ny distribution.
+ *
  * ÅTKOMST: två separata hemligheter, ingen av dem hemlig i egentlig
  * mening (allt som skickas från en webbläsare går att läsa av), men båda
  * höjer ribban rejält jämfört med en helt öppen webhook:
@@ -43,6 +53,11 @@ const WEBHOOK_KEY = '89a632a3709ca303a0e36357db893769a525ed04';
 const ADMIN_PASSWORD = '1891';
 
 const BACKUP_SHEET_ID = '1nT1nk6i64WLbdtWQ5tBOoysdj3pAHGQJ4uix6V8W7y0';
+
+/* Vart den dagliga kontrollen (längst ner i filen) mejlar om den hittar
+   något fel. Byt genom att ändra här och göra en ny distribution — kräver
+   INTE att setupDailyHealthCheckTrigger körs om. */
+const ALERT_EMAIL = 'kajsa@sould.se';
 
 const RATE_LIMIT_MAX = 60;          // max accepterade skrivningar per rullande fönster
 const RATE_LIMIT_WINDOW_SEC = 60;
@@ -507,6 +522,149 @@ function repairReadableSheet(sheetName) {
   Logger.log('Reparerade ' + sheetName + ': ' + outRows.length + ' rader, ' + headers.length + ' kolumner.');
 }
 
+/* ---- Daglig kontroll: fångar precis de tre sakerna som gått fel förut ----
+
+   1. Ett svar registrerat flera gånger (samma timestamp mer än en gång i
+      ett Raw-ark, eller fler rader i den läsbara fliken än unika svar i
+      Raw).
+   2. Dubbla kolumnrubriker i en läsbar flik (samma kod två gånger i
+      rubrikraden — det den gamla number-vs-string-buggen orsakade).
+   3. Backup-arket som halkat efter huvudarket (ett svar finns i
+      huvudarkets Raw men saknas i backupens).
+
+   Läser igenom hela Raw-historiken varje gång — helt tillräckligt snabbt
+   på den skala en kiosk-app genererar svar (dussintals till några hundra
+   per dag), men värt att se över om volymen någon gång blir mycket större.
+
+   Inte nåbar via doGet/doPost, med avsikt — samma anledning som
+   repairAllReadableSheets: ingenting här ska kunna triggas utifrån. */
+function runIntegrityCheck() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const issues = [];
+
+  let backupSs = null;
+  if (BACKUP_SHEET_ID) {
+    try {
+      backupSs = SpreadsheetApp.openById(BACKUP_SHEET_ID);
+    } catch (err) {
+      issues.push('Kan inte öppna backup-arket (kontrollera att det fortfarande finns och delar redigeringsåtkomst): ' + err.message);
+    }
+  }
+
+  ['Test Drive', 'Cab Assessment'].forEach((sheetName) => {
+    checkSheetIntegrity(ss, sheetName, '', issues);
+    if (backupSs) {
+      checkSheetIntegrity(backupSs, sheetName, 'Backup — ', issues);
+      compareMainAndBackup(ss, backupSs, sheetName, issues);
+    }
+  });
+
+  return { ok: issues.length === 0, issues, checkedAt: new Date().toISOString() };
+}
+
+/* Alla timestamps som faktiskt finns i ett givet Raw-ark — grunden för
+   både dubblett- och backup-jämförelserna nedan. */
+function getRawTimestamps(ss, sheetName) {
+  const rawSheet = ss.getSheetByName('Raw — ' + sheetName);
+  const timestamps = [];
+  if (!rawSheet || rawSheet.getLastRow() <= 1) return timestamps;
+  const rows = rawSheet.getRange(2, 1, rawSheet.getLastRow() - 1, 1).getValues();
+  rows.forEach((r) => {
+    try {
+      const parsed = JSON.parse(r[0]);
+      if (parsed && parsed.timestamp) timestamps.push(parsed.timestamp);
+    } catch (err) { /* oläsbar rad — hoppa vidare */ }
+  });
+  return timestamps;
+}
+
+function checkSheetIntegrity(ss, sheetName, label, issues) {
+  const name = label + sheetName;
+
+  const timestamps = getRawTimestamps(ss, sheetName);
+  const seen = {};
+  timestamps.forEach((ts) => { seen[ts] = (seen[ts] || 0) + 1; });
+  Object.keys(seen).forEach((ts) => {
+    if (seen[ts] > 1) issues.push(name + ': "' + ts + '" finns ' + seen[ts] + ' gånger i Raw-arket (ska bara vara en).');
+  });
+
+  const distinctCount = Object.keys(seen).length;
+  const readable = ss.getSheetByName(sheetName);
+  const readableRows = readable ? Math.max(0, readable.getLastRow() - 1) : 0;
+  if (distinctCount !== readableRows) {
+    issues.push(name + ': Raw-arket har ' + distinctCount + ' unika svar men den läsbara fliken har ' + readableRows + ' rader (ska vara lika många).');
+  }
+
+  if (readable && readable.getLastRow() >= 1 && readable.getLastColumn() >= 1) {
+    /* .map(String) — samma anledning som i writeSubmissionLocked: en
+       kodad kolumn som bara är en siffra ("6") kan ha blivit ett tal
+       istället för text, och en jämförelse utan detta skulle då missa en
+       dubblett mellan en text- och en tal-version av samma kod. */
+    const headers = readable.getRange(1, 1, 1, readable.getLastColumn()).getValues()[0].map(String);
+    const headerSeen = {};
+    headers.forEach((h) => { headerSeen[h] = (headerSeen[h] || 0) + 1; });
+    Object.keys(headerSeen).forEach((h) => {
+      if (headerSeen[h] > 1) issues.push(name + ': kolumnen "' + h + '" finns ' + headerSeen[h] + ' gånger i rubrikraden (ska bara vara en).');
+    });
+  }
+}
+
+function compareMainAndBackup(ss, backupSs, sheetName, issues) {
+  const mainSet = {};
+  getRawTimestamps(ss, sheetName).forEach((ts) => { mainSet[ts] = true; });
+  const backupSet = {};
+  getRawTimestamps(backupSs, sheetName).forEach((ts) => { backupSet[ts] = true; });
+
+  let missingFromBackup = 0;
+  Object.keys(mainSet).forEach((ts) => { if (!backupSet[ts]) missingFromBackup++; });
+  if (missingFromBackup > 0) {
+    issues.push(sheetName + ': ' + missingFromBackup + ' svar finns i huvudarket men saknas i backup-arket (spegling har inte kommit ikapp eller har misslyckats).');
+  }
+}
+
+/* Körs av den dagliga triggern (se setupDailyHealthCheckTrigger nedan).
+   Tyst när allt är som det ska — mejlar bara när runIntegrityCheck
+   faktiskt hittar något, eller om kontrollen själv kraschar (t.ex. ett
+   fel i Sheets-strukturen som gör att den inte ens går att läsa). */
+function sendHealthCheckEmail() {
+  let result;
+  try {
+    result = runIntegrityCheck();
+  } catch (err) {
+    MailApp.sendEmail(ALERT_EMAIL,
+      'Scania Test Drive — kontrollen kunde inte köras',
+      'Den dagliga kontrollen av Google Sheets kraschade med felet:\n\n' + err.message +
+      '\n\nNågon borde kolla att Sheets-strukturen (Raw-flikarna, Config-arket) ser ut som den ska.');
+    return;
+  }
+  if (result.ok) return;
+
+  const body = 'Den dagliga kontrollen av Google Sheets hittade ' + result.issues.length +
+    (result.issues.length === 1 ? ' sak' : ' saker') + ' som inte stämmer:\n\n' +
+    result.issues.map((i) => '• ' + i).join('\n') +
+    '\n\nKontrollerat: ' + result.checkedAt;
+  MailApp.sendEmail(
+    ALERT_EMAIL,
+    'Scania Test Drive — kolla Google Sheets (' + result.issues.length + (result.issues.length === 1 ? ' varning' : ' varningar') + ')',
+    body
+  );
+}
+
+/* Engångsinstallation — se steg 6 i filens topp-kommentar. Säker att köra
+   om igen (t.ex. om du vill byta tid på dagen): rensar först bort en
+   ev. tidigare trigger för samma funktion innan den sätter upp en ny, så
+   det aldrig blir två dagliga mejl istället för ett. */
+function setupDailyHealthCheckTrigger() {
+  ScriptApp.getProjectTriggers().forEach((t) => {
+    if (t.getHandlerFunction() === 'sendHealthCheckEmail') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('sendHealthCheckEmail')
+    .timeBased()
+    .everyDays(1)
+    .atHour(6)
+    .create();
+}
+
 /* ---- doGet: returnera all rådata (och den delade konfigurationen) till admin-sidan/enheterna ---- */
 function doGet(e) {
   const action = e && e.parameter && e.parameter.action;
@@ -577,6 +735,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'raw-header-guard-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'healthcheck-email-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
