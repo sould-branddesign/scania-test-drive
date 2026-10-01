@@ -489,21 +489,33 @@
     const { lang, country, group, questions, vehicles, answers, cabQuestions, cabVehicles, cabAnswers, translations } = state;
     localStorage.setItem(STORE_KEY, JSON.stringify({ lang, country, group, questions, vehicles, answers, cabQuestions, cabVehicles, cabAnswers, translations }));
   }
-  function load() {
+  function load(isFreshBoot) {
     try {
       const raw = localStorage.getItem(STORE_KEY);
       if (!raw) { seedDemo(); return; }
       const d = JSON.parse(raw);
-      /* Always start a fresh load with English and no market picked,
-         regardless of what the last visitor had set — a kiosk reload (or
-         simply someone new walking up after the tablet went idle) should
-         never greet the next person in whoever-was-last's language or
-         with their market already selected. Only within a session do
-         state.lang/state.country actually change (the pickers, and the
-         explicit Restart button, both set them directly, in memory —
-         this only governs what a fresh load() starts from). */
-      state.lang = 'en';
-      state.country = '';
+      /* Only a genuine fresh boot (the very first load() call this page
+         load) resets language/market to English/unpicked, regardless of
+         what the last visitor had set — a kiosk reload (or simply someone
+         new walking up after the tablet went idle) should never greet the
+         next person in whoever-was-last's language or with their market
+         already selected.
+
+         load() is ALSO called reactively on a 'storage' event, to pick up
+         a config edit made from another open tab (e.g. admin) without a
+         manual refresh — isFreshBoot is false there, and this leaves
+         state.lang/state.country completely untouched, still whatever
+         this tab's own visitor has already picked. Resetting them
+         unconditionally here used to wipe out a selection mid-flow
+         whenever any other same-origin tab's own sync timer happened to
+         save() in the background — easy to trigger with several tabs
+         open at once, as happened repeatedly while testing this app, but
+         just as possible in practice with an admin tab open alongside a
+         kiosk tab on the same browser. */
+      if (isFreshBoot) {
+        state.lang = 'en';
+        state.country = '';
+      }
       const today = new Date().toISOString().slice(0, 10);
       state.group = d.group || today;
       state.questions = normaliseQuestions((d.questions && d.questions.length) ? d.questions : DEFAULT_QUESTIONS);

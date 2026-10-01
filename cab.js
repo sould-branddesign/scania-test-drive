@@ -387,7 +387,7 @@
 
   window.addEventListener('storage', (e) => {
     if (e.key === window.STD.STORE_KEY) {
-      window.STD.load();
+      window.STD.load(false);
       if (ui.view === 'intro' || ui.view === 'language') render();
     }
   });
@@ -419,6 +419,6 @@
     };
   }
 
-  window.STD.load();
+  window.STD.load(true);
   render();
 })();

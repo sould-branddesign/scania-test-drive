@@ -382,7 +382,7 @@
 
   /* pick up question/vehicle edits made in the admin tab without a manual refresh */
   window.addEventListener('storage', (e) => {
-    if (e.key === window.STD.STORE_KEY) { window.STD.load(); preloadRouteIcons(); if (ui.view === 'intro' || ui.view === 'language' || ui.view === 'vehicle') render(); }
+    if (e.key === window.STD.STORE_KEY) { window.STD.load(false); preloadRouteIcons(); if (ui.view === 'intro' || ui.view === 'language' || ui.view === 'vehicle') render(); }
   });
 
   /* same, but for a config edit pulled in from another device via Sheets — see sheets.js */
@@ -392,7 +392,7 @@
   };
 
   /* ---------- boot ---------- */
-  window.STD.load();
+  window.STD.load(true);
   preloadRouteIcons();
   render();
 })();

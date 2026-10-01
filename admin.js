@@ -1384,7 +1384,7 @@
 
   /* reflect new submissions / edits coming from the test tab */
   window.addEventListener('storage', (e) => {
-    if (e.key === window.STD.STORE_KEY) { window.STD.load(); if (view === 'results') render(); }
+    if (e.key === window.STD.STORE_KEY) { window.STD.load(false); if (view === 'results') render(); }
   });
 
   /* same, but for a config edit pulled in from another device via Sheets — see sheets.js.
@@ -1396,7 +1396,7 @@
   (async function boot() {
     await ensureAdminAccess();   // full-page gate — nothing below runs until the correct code is entered
 
-    window.STD.load();
+    window.STD.load(true);
     /* Restore any default vehicles that were accidentally removed */
     let repaired = false;
     window.STD.DEFAULT_VEHICLES.forEach((dv) => {
