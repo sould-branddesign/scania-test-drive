@@ -603,6 +603,17 @@ function backfillSheetIntoBackup(ss, backupSs, sheetName) {
       row.push(val != null ? val : '');
     });
 
+    /* writeSubmissionLocked's fast-path dedupe cache (see there) can still
+       hold a "already written" entry for this exact timestamp from the
+       ORIGINAL submission that mirrored successfully the first time —
+       harmless days later once it's long expired, but a manual test that
+       deletes a backup row minutes after submitting it will still hit the
+       live cache entry, which makes the write below silently no-op even
+       though we've just confirmed (via backupTimestamps above) that the
+       row is genuinely gone. Clear it first — we already know this entry
+       is missing, so there's nothing for the cache to protect against here. */
+    CacheService.getScriptCache().remove('dedupe:' + backupSs.getId() + ':' + sheetName + ':' + entry.timestamp);
+
     writeSubmission(backupSs, sheetName, headers, row, entry);
     filled++;
   });
@@ -823,6 +834,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'backfill-backup-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'backfill-cache-fix-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
