@@ -621,6 +621,64 @@ function backfillSheetIntoBackup(ss, backupSs, sheetName) {
   Logger.log('Fyllde i ' + filled + ' saknade rader i backupen för ' + sheetName + '.');
 }
 
+/* ---- Engångsstädning: ta bort exakta dubbletter ur ett Raw-ark ----
+
+   Tar bort rader med EXAKT samma timestamp (millisekund-precision — en
+   Cab Assessment-session med flera fordon ger flera rader inom samma
+   SEKUND, men var och en har sin egen, millisekund-förskjutna timestamp,
+   se submitAllEvaluations i cab.js, så de räknas aldrig som dubbletter
+   här). Behåller den FÖRSTA kopian av varje timestamp, tar bort resten.
+   Bygger sedan om den läsbara fliken automatiskt (samma som
+   repairReadableSheet) så den stämmer med det städade Raw-arket.
+
+   Rör bara huvudarket, precis som repairAllReadableSheets — kör
+   backfillBackup separat efteråt om en dubblett redan hunnit spegla sig
+   till backupen innan du städar här.
+
+   Körs manuellt: välj "deduplicateAllRawSheets" i funktionslistan högst
+   upp i Apps Script-redigeraren och klicka Kör. Inte nåbar via
+   doGet/doPost, med avsikt — samma anledning som repairAllReadableSheets. */
+function deduplicateAllRawSheets() {
+  deduplicateRawSheet('Test Drive');
+  deduplicateRawSheet('Cab Assessment');
+}
+
+function deduplicateRawSheet(sheetName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const rawSheetName = 'Raw — ' + sheetName;
+  const rawSheet = ss.getSheetByName(rawSheetName);
+  if (!rawSheet || rawSheet.getLastRow() <= 1) {
+    Logger.log('Inget att städa för ' + sheetName + ' — inget Raw-ark eller inga rader.');
+    return;
+  }
+
+  const rows = rawSheet.getRange(2, 1, rawSheet.getLastRow() - 1, 1).getValues();
+  const seen = {};
+  const rowsToDelete = [];
+  rows.forEach((r, i) => {
+    let entry;
+    try { entry = JSON.parse(r[0]); } catch (err) { return; }
+    const ts = entry && entry.timestamp;
+    if (!ts) return;
+    if (seen[ts]) {
+      rowsToDelete.push(2 + i); // +2: hoppa över rubrikraden, rows[] är 0-indexerad
+    } else {
+      seen[ts] = true;
+    }
+  });
+
+  if (!rowsToDelete.length) {
+    Logger.log('Inga dubbletter hittades i Raw-arket för ' + sheetName + '.');
+    return;
+  }
+
+  /* radera nedifrån och upp så att resterande radindex inte förskjuts under tiden */
+  rowsToDelete.sort((a, b) => b - a).forEach((rowIndex) => rawSheet.deleteRow(rowIndex));
+
+  Logger.log('Tog bort ' + rowsToDelete.length + ' dubblettrad(er) ur Raw-arket för ' + sheetName + '. Bygger om den läsbara fliken…');
+  repairReadableSheet(sheetName);
+}
+
 /* ---- Daglig kontroll: fångar precis de tre sakerna som gått fel förut ----
 
    1. Ett svar registrerat flera gånger (samma timestamp mer än en gång i
@@ -834,6 +892,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'backfill-cache-fix-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'dedup-raw-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
