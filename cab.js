@@ -217,10 +217,13 @@
 
   /* ---------- category icons (question step) ---------- */
   const CAT_ICONS = {
-    boarding: 'assets/icons/boarding-exiting.svg?v=3',
-    ergonomics: 'assets/icons/ergonomics-reachability.svg?v=6',
+    boarding: 'assets/icons/cab-entry.svg?v=1',
+    ergonomics: 'assets/icons/driver-ergonomics-1.svg?v=1',
+    ergonomics_driving: 'assets/icons/driver-ergonomics-2.svg?v=1',
     fit_finish: 'assets/icons/fit-finish.svg?v=7',
-    safety: 'assets/icons/safety-visibility.svg?v=6',
+    'category-8-8': 'assets/icons/fit-and-finish.svg?v=1',
+    safety: 'assets/icons/safe-driving.svg?v=1',
+    cab_exit: 'assets/icons/cab-exit.svg?v=1',
   };
 
     /* ---------- question step ---------- */
