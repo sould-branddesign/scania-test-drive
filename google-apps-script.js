@@ -210,7 +210,37 @@ function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
     } catch (err) { /* leave as-is if it doesn't parse as a date */ }
   }
 
-  /* 1. Skriv läsbar rad till rätt ark (Test Drive / Cab Assessment) */
+  /* 1. Spara rådata som JSON i separat Raw-ark per formulär — written
+     FIRST, before the readable sheet below. These are two separate,
+     non-atomic appendRow calls; if execution is interrupted between them
+     (an Apps Script timeout, a transient Sheets error), whichever one
+     happened second never runs. The idempotency check above only looks
+     at the Raw sheet, so Raw has to be the one that lands first: that
+     way an interrupted run leaves a Raw row with no readable row (a gap
+     repairAllReadableSheets can fill in later), and a retry correctly
+     sees the Raw row and skips — instead of the readable sheet silently
+     getting a duplicate while Raw stayed at one row, which is what the
+     old write-readable-then-raw order let happen (exactly how the
+     Test Drive sheet ended up with the same submission twice). */
+  if (raw) {
+    let rawSheet = ss.getSheetByName(rawSheetName);
+    if (!rawSheet) rawSheet = ss.insertSheet(rawSheetName);
+    /* Checking "does the sheet have a header row" (lastRow === 0) rather
+       than "did we just create the sheet" — if someone manually clears
+       every row (including the header) while leaving the tab itself in
+       place, the old !rawSheet check alone never re-added the header, so
+       the next submission's JSON landed in row 1 — exactly where
+       action=data's reader (which always starts at row 2, skipping what
+       it assumes is the header) would never look. Not a lost submission,
+       just an invisible one. */
+    if (rawSheet.getLastRow() === 0) {
+      rawSheet.getRange(1, 1).setValue('JSON').setFontWeight('bold');
+      rawSheet.setFrozenRows(1);
+    }
+    rawSheet.appendRow([JSON.stringify(raw)]);
+  }
+
+  /* 2. Skriv läsbar rad till rätt ark (Test Drive / Cab Assessment) */
   let sheet = ss.getSheetByName(sheetName) || ss.insertSheet(sheetName);
 
   const lastCol = sheet.getLastColumn();
@@ -241,7 +271,7 @@ function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
      metric columns ended up empty for many rows, with several columns
      duplicated from being deleted and re-added more than once. Reverted
      to append-only. The dropped values were never actually lost — they're
-     intact in the Raw sheet below, which this never touches — only this
+     intact in the Raw sheet (written earlier above), which this never touches — only this
      human-readable view lost them. */
   headers.forEach((h) => {
     if (!existingHeaders.includes(h)) {
@@ -262,17 +292,6 @@ function writeSubmissionLocked(ss, sheetName, headers, row, raw) {
     return idx >= 0 ? row[idx] : '';
   });
   sheet.appendRow(dataRow);
-
-  /* 2. Spara rådata som JSON i separat Raw-ark per formulär */
-  if (raw) {
-    let rawSheet = ss.getSheetByName(rawSheetName);
-    if (!rawSheet) {
-      rawSheet = ss.insertSheet(rawSheetName);
-      rawSheet.getRange(1, 1).setValue('JSON').setFontWeight('bold');
-      rawSheet.setFrozenRows(1);
-    }
-    rawSheet.appendRow([JSON.stringify(raw)]);
-  }
 
   /* Mark this submission as handled for the fast-path check above —
      6 hours (CacheService's own ceiling) is far longer than any resubmit
@@ -558,6 +577,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'backup-dedupe-fix-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'raw-header-guard-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
