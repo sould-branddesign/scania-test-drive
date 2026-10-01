@@ -494,16 +494,16 @@
       const raw = localStorage.getItem(STORE_KEY);
       if (!raw) { seedDemo(); return; }
       const d = JSON.parse(raw);
-      /* Always start a fresh load in English, regardless of what the
-         last visitor had it set to — a kiosk reload (or simply someone
-         new walking up after the tablet went idle) should never greet
-         the next person in whoever-was-last's language. Only country is
-         restored, and only within a session does state.lang actually
-         change (the language picker, and the explicit Restart button
-         both set it directly, in memory — this only governs what a
-         fresh load() starts from). */
+      /* Always start a fresh load with English and no market picked,
+         regardless of what the last visitor had set — a kiosk reload (or
+         simply someone new walking up after the tablet went idle) should
+         never greet the next person in whoever-was-last's language or
+         with their market already selected. Only within a session do
+         state.lang/state.country actually change (the pickers, and the
+         explicit Restart button, both set them directly, in memory —
+         this only governs what a fresh load() starts from). */
       state.lang = 'en';
-      state.country = d.country || '';
+      state.country = '';
       const today = new Date().toISOString().slice(0, 10);
       state.group = d.group || today;
       state.questions = normaliseQuestions((d.questions && d.questions.length) ? d.questions : DEFAULT_QUESTIONS);
