@@ -522,6 +522,94 @@ function repairReadableSheet(sheetName) {
   Logger.log('Reparerade ' + sheetName + ': ' + outRows.length + ' rader, ' + headers.length + ' kolumner.');
 }
 
+/* ---- Engångsreparation: fyll i luckor i backup-arket ----
+
+   Används om sendHealthCheckEmail (se nedan) rapporterar att backupen
+   halkat efter huvudarket — letar upp varje svar som finns i huvudarkets
+   Raw-ark men saknas i backupens, och skriver in dem i backupen (både
+   Raw-arket och den läsbara fliken) genom att återanvända samma
+   writeSubmission-funktion som ett vanligt inskick går igenom, så
+   kolumnhantering, låsning och tidszons-konvertering blir exakt likadan.
+
+   Rör aldrig huvudarket, bara backupen — säker att köra när som helst,
+   även medan nya svar fortsätter komma in, eftersom den bara LÄGGER TILL
+   rader den inte redan hittar i backupens Raw-ark (matchat på timestamp).
+
+   KÄND BEGRÄNSNING: samma som repairReadableSheet ovan — kolumnen
+   "Language" kan inte återskapas, den sparades aldrig i Raw-arkets JSON.
+
+   Körs manuellt: välj "backfillBackup" i funktionslistan högst upp i
+   Apps Script-redigeraren och klicka Kör. Inte nåbar via doGet/doPost,
+   med avsikt — samma anledning som repairAllReadableSheets. */
+function backfillBackup() {
+  if (!BACKUP_SHEET_ID) {
+    Logger.log('Inget BACKUP_SHEET_ID konfigurerat — inget att fylla i.');
+    return;
+  }
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let backupSs;
+  try {
+    backupSs = SpreadsheetApp.openById(BACKUP_SHEET_ID);
+  } catch (err) {
+    Logger.log('Kan inte öppna backup-arket: ' + err.message);
+    return;
+  }
+  backfillSheetIntoBackup(ss, backupSs, 'Test Drive');
+  backfillSheetIntoBackup(ss, backupSs, 'Cab Assessment');
+}
+
+function backfillSheetIntoBackup(ss, backupSs, sheetName) {
+  const rawSheetName = 'Raw — ' + sheetName;
+  const rawSheet = ss.getSheetByName(rawSheetName);
+  if (!rawSheet || rawSheet.getLastRow() <= 1) {
+    Logger.log('Inget att fylla i för ' + sheetName + ' — inget Raw-ark eller inga rader i huvudarket.');
+    return;
+  }
+
+  const backupTimestamps = {};
+  getRawTimestamps(backupSs, sheetName).forEach((ts) => { backupTimestamps[ts] = true; });
+
+  const config = readConfig().config || {};
+  const categories = (sheetName === 'Cab Assessment') ? (config.cabQuestions || []) : (config.questions || []);
+  const baseHeaders = ['Timestamp', 'Group', 'Language', 'Country', 'Form', 'Vehicle', 'Brand'];
+  const metricHeaders = [];
+  const metricIds = [];
+  categories.forEach((cat) => {
+    (cat.metrics || []).forEach((m) => {
+      metricHeaders.push(m.code || (cat.title + ' — ' + m.label));
+      metricIds.push(m.id);
+    });
+  });
+  const headers = baseHeaders.concat(metricHeaders);
+
+  const rawRows = rawSheet.getRange(2, 1, rawSheet.getLastRow() - 1, 1).getValues();
+  let filled = 0;
+  rawRows.forEach((r) => {
+    let entry;
+    try { entry = JSON.parse(r[0]); } catch (err) { return; }
+    if (!entry || !entry.timestamp || backupTimestamps[entry.timestamp]) return;
+
+    const row = [
+      entry.timestamp,
+      entry.group || '',
+      '', // språket sparades aldrig i Raw — kan inte återskapas
+      entry.country || '',
+      entry.formId || '',
+      entry.vehicleName || '',
+      entry.vehicleBrand || '',
+    ];
+    metricIds.forEach((id) => {
+      const val = entry.answers ? entry.answers[id] : undefined;
+      row.push(val != null ? val : '');
+    });
+
+    writeSubmission(backupSs, sheetName, headers, row, entry);
+    filled++;
+  });
+
+  Logger.log('Fyllde i ' + filled + ' saknade rader i backupen för ' + sheetName + '.');
+}
+
 /* ---- Daglig kontroll: fångar precis de tre sakerna som gått fel förut ----
 
    1. Ett svar registrerat flera gånger (samma timestamp mer än en gång i
@@ -735,6 +823,6 @@ function doGet(e) {
      verkligen är den som faktiskt svarar — höj den varje gång koden
      ändras igen, om det behövs för felsökning. */
   return ContentService
-    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'healthcheck-email-1' }))
+    .createTextOutput(JSON.stringify({ ok: true, service: 'Scania Test Drive — Sheets sync', codeVersion: 'backfill-backup-1' }))
     .setMimeType(ContentService.MimeType.JSON);
 }
