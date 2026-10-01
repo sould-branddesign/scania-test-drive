@@ -48,7 +48,7 @@
     'Scania 500R A6X2/4NB', 'Volvo FH Aero 510 4x2',
     'Scania 460R A4X2NA', 'MAN TGX 18.480 BLS Euro 6e',
     'Scania 560S A4X2NB', 'DAF XG+ 480 FT 4x2 E6e',
-    'Scania 40S A4X2NB', 'Volvo FH electric 4x2',
+    'Scania 33R A4X2NB', 'Volvo FH electric 4x2',
     'Scania 500R A4x2LB', 'Mercedes Actros 1851 LS 4x2 E6',
   ].map((name) => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
 
