@@ -258,7 +258,10 @@
     if (routeIcon) head2.appendChild(h(`<img class="route-icon" src="${routeIcon}" alt="" aria-hidden="true">`));
     const textCol = h('<div class="question-head__text"></div>');
     textCol.appendChild(h(`<h1 class="screen__title">${esc(cat.title)}</h1>`));
-    if (cat.instruction) textCol.appendChild(h(`<p class="screen__sub">${esc(cat.instruction)}</p>`));
+    if (cat.instruction) {
+      const lines = cat.instruction.split('\n').filter((line) => line.trim());
+      textCol.appendChild(h(`<div class="screen__sub-group">${lines.map((line) => `<p class="screen__sub">${esc(line)}</p>`).join('')}</div>`));
+    }
     head2.appendChild(textCol);
     b.appendChild(head2);
 

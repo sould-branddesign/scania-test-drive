@@ -459,7 +459,8 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
 .question-head .question-icon { flex: 0 0 auto; margin: 0; }
 .question-head__text { flex: 1 1 auto; min-width: 0; }
 .question-head__text .screen__title { margin-top: 0; }
-.question-head__text .screen__sub { margin-top: 16px; }
+.question-head__text .screen__sub-group { margin-top: 16px; }
+.screen__sub-group .screen__sub { margin: 0; }
 .question-metrics { margin-top: clamp(20px, 10vh, 84px); }
 .question-metrics-cab { margin-top: clamp(24px, 10vh, 90px); }
 .screen__sub {
@@ -470,10 +471,9 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   letter-spacing: 0.07px;
   line-height: 1.2;
   margin: 34px 0 0;
-  /* Instruction text is edited in a <textarea> in admin, where line breaks
-     are visible — without this, the browser's default whitespace handling
-     silently collapses those \n characters back into one line here. */
-  white-space: pre-line;
+  /* avoids a single stray word getting wrapped onto its own line at the
+     end of a paragraph (e.g. "...the bed with the\niPad.") */
+  text-wrap: pretty;
 }
 @media (max-width: 600px) {
   .question-head { flex-direction: column; align-items: stretch; margin-top: 26px; }
@@ -1520,7 +1520,12 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
     border-radius: 28px;
   }
   .screen__head .logo { height: 23px; }
-  .question-icon { width: 132px; height: 132px; margin-bottom: 24px; }
+  .question-icon { width: 88px; height: 88px; margin-bottom: 24px; }
+  /* narrower gap between the cab-assessment icon and its instruction text —
+     the default clamp(24px, 5vh, 44px) left the text column too narrow for
+     a long multi-sentence instruction (e.g. "Cab Entry"), wrapping it into
+     three ragged lines instead of two clean ones. */
+  .question-head--cab { gap: 24px; }
   .route-icon { height: clamp(120px, 15vh, 220px); }
   .screen__title { font-size: 30px; margin-top: 32px; }
   .screen__sub { font-size: 20px; margin-top: 28px; }

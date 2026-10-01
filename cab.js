@@ -254,7 +254,14 @@
     if (questionIcon) qHead.appendChild(h(`<img class="question-icon" src="${questionIcon}" alt="" aria-hidden="true">`));
     const qText = h('<div class="question-head__text"></div>');
     qText.appendChild(h(`<h1 class="screen__title">${esc(cat.title)}</h1>`));
-    if (cat.instruction) qText.appendChild(h(`<p class="screen__sub">${esc(cat.instruction)}</p>`));
+    if (cat.instruction) {
+      /* each admin-authored line gets its own <p> so the browser's line-
+         wrapping (and orphan-avoidance) treats it as its own paragraph,
+         instead of one giant block where a short line can wrap oddly
+         mid-sentence. */
+      const lines = cat.instruction.split('\n').filter((line) => line.trim());
+      qText.appendChild(h(`<div class="screen__sub-group">${lines.map((line) => `<p class="screen__sub">${esc(line)}</p>`).join('')}</div>`));
+    }
     qHead.appendChild(qText);
     b.appendChild(qHead);
 
