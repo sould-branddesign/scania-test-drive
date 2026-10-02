@@ -102,7 +102,7 @@
   }
 
   /* Fetch all submitted evaluations from Sheets (for Results view + reconciliation).
-     Races the fetch against a timeout, same as ping()/verifyAdminKey() and for the
+     Races the fetch against a timeout, same as ping()/checkAdminKey() and for the
      same reason — an idle Apps Script deployment can take a long time to wake up,
      and this one had no bound at all, so a slow response left admin.js's "Refresh
      results" button stuck spinning indefinitely (see the "is-loading" handling
@@ -224,28 +224,36 @@
   }
 
   /* Ask the backend, right now, whether `key` matches ADMIN_PASSWORD — a
-     plain GET, not one of the blind no-cors POSTs, so the admin panel gets
-     an immediate, reliable yes/no before it ever tries to save.
+     plain GET, not one of the blind no-cors POSTs. Resolves to one of:
+       'ok'          the backend accepted the key
+       'wrong'       the backend answered, and said no (a clean {ok:false})
+       'unreachable' no usable answer — too slow, offline, an HTTP or
+                     Google error page, rate-limited, anything unexpected.
+     The last two are kept apart on purpose: a slow or failed request used
+     to be reported as "wrong code" and made people retype a correct code.
+     Only 'wrong' means the code itself is rejected.
 
      Races the fetch against a timeout, same as ping() above and for the
      same reason: an idle Apps Script deployment can take several seconds
      to wake up, and an AbortController tied to its cross-origin redirect
      was observed to hang indefinitely instead of actually cancelling —
      so this just stops waiting after timeoutMs rather than aborting. */
-  async function verifyAdminKey(key, timeoutMs = 15000) {
+  async function checkAdminKey(key, timeoutMs = 30000) {
     const url = getUrl();
-    if (!url || !key) return false;
+    if (!url || !key) return 'unreachable';
     const attempt = (async () => {
       try {
         const res = await fetch(url + '?action=checkAdmin&key=' + encodeURIComponent(key), { cache: 'no-store' });
-        if (!res.ok) return false;
+        if (!res.ok) return 'unreachable';
         const data = await res.json();
-        return !!(data && data.ok);
+        if (data && data.ok === true) return 'ok';
+        if (data && data.ok === false && !data.error) return 'wrong';
+        return 'unreachable';
       } catch {
-        return false;
+        return 'unreachable';
       }
     })();
-    const timeout = new Promise((resolve) => setTimeout(() => resolve(false), timeoutMs));
+    const timeout = new Promise((resolve) => setTimeout(() => resolve('unreachable'), timeoutMs));
     return Promise.race([attempt, timeout]);
   }
 
@@ -264,8 +272,9 @@
      evaluations, there's nothing to lose by superseding an earlier
      unconfirmed push), so this holds one pending item, not a list.
 
-     adminKey must already be verified (see verifyAdminKey) before this is
-     called — an unverified/wrong key would otherwise just retry forever,
+     adminKey must be the real admin code (admin.js checks it against its
+     own copy before calling this, then confirms with the backend afterwards
+     via checkAdminKey) — a wrong key would otherwise just retry forever,
      silently, since the no-cors POST can't report the rejection back. */
   async function pushConfig(configObj, adminKey) {
     const url = getUrl();
@@ -334,6 +343,6 @@
     submit, getUrl, setUrl, fetchAll, ping,
     flushQueue: reconcile,     // kept for admin.js
     loadQueue: loadPending,    // kept for admin.js's "N pending" display
-    pushConfig, pullConfig, syncConfig, verifyAdminKey,
+    pushConfig, pullConfig, syncConfig, checkAdminKey,
   };
 })();

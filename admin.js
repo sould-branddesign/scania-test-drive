@@ -758,19 +758,24 @@
   let translationDraft = null;
   let sheetsUnlocked = false; // Sheets webhook URL is read-only until explicitly unlocked — see sheetsCfgHtml()
   let pendingIconCi = -1;     // which editDraft category the hidden file input's next change event is for
-  /* Admin PIN, checked locally so opening the admin page never waits on a
-     network round-trip — must match ADMIN_PASSWORD in google-apps-script.js,
-     update both together if it's ever rotated. This only gates *viewing*
-     the page; actually saving a config change still goes through a real
-     backend check (see ensureAdminKey() below) — that's the one action
-     that writes to the shared backend, so it's the one worth the
-     round-trip. */
-  const ADMIN_PIN = '1891';
-  const ADMIN_SESSION_MS = 5 * 60 * 1000; // re-prompt for the code after 5 minutes idle
+  /* Admin PIN, checked locally so entering the admin page never waits on a
+     network round-trip. Must match ADMIN_PASSWORD in google-apps-script.js,
+     update both together if it's ever rotated: the backend independently
+     rejects a save whose key doesn't match it, and the save handler asks it
+     to confirm in the background so a mismatch gets noticed.
 
-  /* Verified admin key for the current session — kept only in this browser
-     tab's sessionStorage, never persisted anywhere longer-lived. Expires
-     after ADMIN_SESSION_MS regardless of whether the tab stays open. */
+     The code is asked for once, when entering the admin page — never again
+     while you stay on it, however long that is, and saving never asks. It is
+     asked for again only when you come back to the admin page more than
+     ADMIN_SESSION_MS after you last left it. */
+  const ADMIN_PIN = '1891';
+  const ADMIN_SESSION_MS = 5 * 60 * 1000;
+
+  /* The verified admin key — kept only in this browser tab's sessionStorage,
+     never persisted anywhere longer-lived. scania_admin_key_at is when the
+     admin page was last open: stamped on entry, refreshed while the page
+     stays open and again as it is left (see below), so the five minutes are
+     counted from leaving, not from typing the code. */
   let adminKey = sessionStorage.getItem('scania_admin_key') || '';
 
   function hasFreshAdminKey() {
@@ -784,11 +789,22 @@
     }
     return true;
   }
+  function touchAdminSession() {
+    if (adminKey) sessionStorage.setItem('scania_admin_key_at', String(Date.now()));
+  }
   function setAdminKey(val) {
     adminKey = val;
+    touchAdminSession();
     sessionStorage.setItem('scania_admin_key', val);
-    sessionStorage.setItem('scania_admin_key_at', String(Date.now()));
   }
+  /* Keep the "last open" stamp current while this page is open (a crash or
+     force-quit never fires pagehide), and stamp it as the page is left. The
+     pageshow check covers coming back to a page the browser kept alive in its
+     back/forward cache: that restores the old page without running boot
+     again, which would otherwise skip the code however long you were gone. */
+  setInterval(touchAdminSession, 30000);
+  window.addEventListener('pagehide', touchAdminSession);
+  window.addEventListener('pageshow', (e) => { if (e.persisted && !hasFreshAdminKey()) location.reload(); });
 
   const ROUTE_ICON_MAX_DIM = 900;      // px — plenty for the ~230x290 display box even at retina
   const ROUTE_ICON_WARN_BYTES = 300000; // ~300KB data URI — still fine, but nudge toward SVG/smaller art
@@ -897,85 +913,14 @@
     box.querySelector('.btn-confirm').onclick = () => { overlay.remove(); onConfirm(); };
   }
 
-  /* Saving question/vehicle config is the one admin action that actually
-     writes to the shared backend (see google-apps-script.js ADMIN_PASSWORD),
-     so it's gated on a password verified with a real round-trip before the
-     save is attempted — the save itself goes out as a blind no-cors POST
-     that can't report a rejection back, so entering the wrong password
-     there would otherwise just retry forever, silently. Resolves true once
-     a verified key is ready to use, false if the user cancelled. */
-  async function ensureAdminKey() {
-    if (hasFreshAdminKey()) {
-      const stillValid = await window.STDSheets.verifyAdminKey(adminKey);
-      if (stillValid) return true;
-      adminKey = '';
-      sessionStorage.removeItem('scania_admin_key');
-      sessionStorage.removeItem('scania_admin_key_at');
-    }
-    return promptForAdminKey();
-  }
-
-  function promptForAdminKey() {
-    /* Fire-and-forget: wakes up the Apps Script deployment (a bare GET,
-       untouched by any rate limit) the moment the code prompt appears, so
-       the real checkAdmin round-trip on submit lands on an already-warm
-       container instead of paying its cold-start latency too — Apps
-       Script's biggest delay is spinning up, not the actual check. */
-    if (window.STDSheets) window.STDSheets.ping();
-    return new Promise((resolve) => {
-      const overlay = h('<div class="confirm-overlay confirm-overlay--top"></div>');
-      const box = h(`<div class="confirm-box">
-        <p class="confirm-box__title">Admin code</p>
-        <p class="confirm-box__msg">Required to save changes so they sync out to every device.</p>
-        <input type="password" inputmode="numeric" class="sheets-cfg__input" id="adminKeyInput" style="width:100%;margin-bottom:6px" placeholder="Code" autocomplete="off" />
-        <p class="confirm-box__msg" id="adminKeyError" style="display:none;color:#ff5a5a">Wrong code.</p>
-        <div class="confirm-box__btns">
-          <button class="btn-cancel">Cancel</button>
-          <button class="btn-confirm">Confirm</button>
-        </div>
-      </div>`);
-      overlay.appendChild(box);
-      document.body.appendChild(overlay);
-      const input = box.querySelector('#adminKeyInput');
-      const errEl = box.querySelector('#adminKeyError');
-      const confirmBtn = box.querySelector('.btn-confirm');
-      input.focus();
-
-      const attempt = async () => {
-        const val = input.value.trim();
-        if (!val) return;
-        errEl.style.display = 'none';
-        confirmBtn.disabled = true;
-        confirmBtn.textContent = 'Checking…';
-        const ok = await window.STDSheets.verifyAdminKey(val);
-        confirmBtn.disabled = false;
-        confirmBtn.textContent = 'Confirm';
-        if (ok) {
-          setAdminKey(val);
-          overlay.remove();
-          resolve(true);
-        } else {
-          errEl.style.display = 'block';
-          input.select();
-        }
-      };
-
-      box.querySelector('.btn-cancel').onclick = () => { overlay.remove(); resolve(false); };
-      confirmBtn.onclick = attempt;
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') attempt(); });
-    });
-  }
-
   /* Gates the whole admin page — shown before any results/editor content
      ever renders. A close button backs out to wherever this tab came from
      (the kiosk's "Admin" corner link, in practice) rather than leaving
      someone stuck with only "enter the code or nothing" — that's the only
      way out, since there's no admin content yet to fall back to showing.
      Checked against ADMIN_PIN locally — instant, no network round-trip —
-     since this only decides whether to show the page. Sets the same admin
-     key/cache used for saving, but ensureAdminKey() re-verifies it against
-     the real backend before any actual write, so entering the page never
-     on its own grants the ability to save. */
+     since this only decides whether to show the page. Sets the admin key the
+     page then uses for saving — saving never asks for the code again. */
   function showAdminGate() {
     /* Fire-and-forget backend warm-up — doesn't affect the gate itself
        (that's checked locally below), but means the backend is already
@@ -1032,9 +977,9 @@
     });
   }
 
-  /* Resolves once an admin key is cached and still fresh (see
-     ADMIN_SESSION_MS) — falls back to the gate otherwise. Purely a local
-     check; see showAdminGate()'s comment for why that's fine here. */
+  /* Resolves once the page may be shown: straight away if the admin page was
+     last open less than ADMIN_SESSION_MS ago in this tab, otherwise through
+     the gate. Purely a local check; see showAdminGate()'s comment. */
   async function ensureAdminAccess() {
     if (hasFreshAdminKey()) return true;
     return showAdminGate();
@@ -1339,9 +1284,15 @@
           toast('Translations saved for ' + ((LANGS.find((l) => l.code === editLang) || {}).label || editLang));
         }
         if (window.STDSheets) {
-          const ready = await ensureAdminKey();
-          if (ready) window.STDSheets.pushConfig(window.STD.getConfigBundle(), adminKey);
-          else toast('Saved on this device only — enter the admin password to sync it to the others');
+          /* No code prompt here: nothing on this page renders until the gate
+             at boot has been passed, so adminKey is always set by now. */
+          window.STDSheets.pushConfig(window.STD.getConfigBundle(), adminKey);
+          /* Quiet confirmation that the backend agrees on the code. Only a
+             clean "wrong" from it is reported — a slow or failed check
+             says nothing about the code, so it stays silent. */
+          window.STDSheets.checkAdminKey(adminKey).then((r) => {
+            if (r === 'wrong') toast('The server rejected the admin code — this change is saved on this device only. Check ADMIN_PASSWORD in Apps Script.', 9000);
+          });
         }
         break;
       }
@@ -1374,12 +1325,12 @@
 
   /* ---------- toast ---------- */
   let toastTimer;
-  function toast(msg) {
+  function toast(msg, ms = 2200) {
     let el = $('.toast');
     if (!el) { el = h('<div class="toast"></div>'); document.body.appendChild(el); }
     el.textContent = msg; el.classList.add('show');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+    toastTimer = setTimeout(() => el.classList.remove('show'), ms);
   }
 
   /* reflect new submissions / edits coming from the test tab */
