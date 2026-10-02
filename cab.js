@@ -267,7 +267,7 @@
   const CAT_ICONS = {
     boarding: 'assets/icons/cab-entry.svg?v=1',
     cross_cab_access: 'assets/icons/cross-cab-access.svg?v=1',
-    ergonomics: 'assets/icons/driver-ergonomics-1.svg?v=1',
+    ergonomics: 'assets/icons/driver-ergonomics-1.svg?v=2',
     ergonomics_driving: 'assets/icons/driver-ergonomics-2.svg?v=1',
     fit_finish: 'assets/icons/living.svg?v=1',
     'category-8-8': 'assets/icons/fit-and-finish.svg?v=1',
