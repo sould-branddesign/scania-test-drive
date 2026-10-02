@@ -525,7 +525,19 @@
       state.cabVehicles = (d.cabVehicles && d.cabVehicles.length) ? d.cabVehicles : DEFAULT_CAB_VEHICLES;
       state.cabAnswers = d.cabAnswers || {};
       state.translations = d.translations || {};
-      save();   // persist any codes just backfilled onto pre-existing local data
+      /* Only a real boot writes back (to persist any codes just backfilled
+         onto pre-existing local data). A load that's merely reacting to a
+         'storage' event from another tab must NOT: save() also writes this
+         tab's own state.lang/state.country into the shared blob, and two
+         tabs of the app almost always disagree on those (one visitor's
+         pick vs the other's default), so each tab's write changed the
+         blob, fired a storage event in the other tab, which re-loaded,
+         re-wrote and fired one back — an endless ping-pong re-rendering
+         both tabs hundreds of times a second. The visible result was a
+         blank, unclickable page (every render restarts the fade-in from
+         opacity 0) for as long as a second tab stayed open, e.g. the
+         admin page next to a kiosk tab, even across reloads. */
+      if (isFreshBoot) save();
     } catch (e) { seedDemo(); }
   }
 
