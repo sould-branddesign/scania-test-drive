@@ -18,7 +18,54 @@
      day it first picked up, mislabeling every submission after that. */
   function todayLabel() { return new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
 
-  let ui = { view: 'intro', currentVehicle: null, stepIndex: 0, draftsByVehicle: {}, completedVehicles: new Set() };
+  let ui = { view: 'intro', currentVehicle: null, stepIndex: 0, draftsByVehicle: {}, completedVehicles: new Set(), timers: {}, timerOrder: [] };
+
+  /* ---------- per-vehicle countdown ---------- */
+  /* The first vehicle a visitor starts gets 13 minutes, every other one 9 —
+     whichever model it is. The clock only runs while that vehicle's
+     question screens are showing (it pauses in the hub and resumes where
+     it left off), and it never blocks anything: when time is up it just
+     turns red and counts up. Elapsed time is measured from timestamps, not
+     by counting ticks, so a dimmed or throttled tablet doesn't drift. */
+  const FIRST_VEHICLE_MIN = 13;
+  const OTHER_VEHICLE_MIN = 9;
+
+  function resetTimers() { ui.timers = {}; ui.timerOrder = []; }
+
+  /* called at the start of every render: pause everything, then resume
+     only the vehicle whose question screen is about to show */
+  function syncTimer() {
+    const now = Date.now();
+    Object.keys(ui.timers).forEach((id) => {
+      const tm = ui.timers[id];
+      if (tm.startedAt) { tm.usedMs += now - tm.startedAt; tm.startedAt = null; }
+    });
+    if (ui.view !== 'question' || !ui.currentVehicle) return;
+    let tm = ui.timers[ui.currentVehicle];
+    if (!tm) {
+      tm = ui.timers[ui.currentVehicle] = {
+        usedMs: 0,
+        startedAt: null,
+        limitMs: (ui.timerOrder.length ? OTHER_VEHICLE_MIN : FIRST_VEHICLE_MIN) * 60000,
+      };
+      ui.timerOrder.push(ui.currentVehicle);
+    }
+    tm.startedAt = now;
+  }
+
+  function paintTimer(el) {
+    const tm = ui.timers[ui.currentVehicle];
+    if (!el || !tm) return;
+    const elapsed = tm.usedMs + (tm.startedAt ? Date.now() - tm.startedAt : 0);
+    const remaining = tm.limitMs - elapsed;
+    const fmt = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+    const over = remaining <= 0;
+    const text = over ? '+' + fmt(Math.floor(-remaining / 1000)) : fmt(Math.ceil(remaining / 1000));
+    if (el.textContent !== text) el.textContent = text;
+    el.classList.toggle('is-over', over);
+  }
+
+  setInterval(() => paintTimer(document.querySelector('.cab-timer')), 250);
 
   /* the in-progress answers for whichever vehicle is currently being
      evaluated — created on first touch so switching between vehicles in
@@ -53,6 +100,7 @@
   }
 
   function render() {
+    syncTimer();
     const oldEl = app.firstElementChild;
     if (oldEl) oldEl.style.display = 'none';
     ({ intro: viewIntro, language: viewLanguage, vehicleHub: viewVehicleHub, question: viewQuestion, thanks: viewThanks }[ui.view] || viewIntro)();
@@ -246,6 +294,9 @@
 
     const hd = head();
     const chipStyle = `--chip:${brand.solid}${brand.solidB ? ';--chip-b:' + brand.solidB : ''}`;
+    const timerEl = h('<span class="cab-timer" role="timer"></span>');
+    paintTimer(timerEl);
+    hd.querySelector('.screen__head-right').appendChild(timerEl);
     hd.querySelector('.screen__head-right').appendChild(h(`<span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${chipStyle}">${esc(vehicle ? vehicle.name : '')}</span>`));
     s.appendChild(hd);
 
@@ -382,7 +433,7 @@
       </div>
     </div>`);
     $('[data-act="next"]', wrap).onclick = () => {
-      ui.currentVehicle = null; ui.draftsByVehicle = {}; ui.completedVehicles = new Set();
+      ui.currentVehicle = null; ui.draftsByVehicle = {}; ui.completedVehicles = new Set(); resetTimers();
       go('intro');
     };
     const b = body();
@@ -396,7 +447,9 @@
   function body() { const b = h('<div class="screen__body"></div>'); if (noAnim) b.style.animation = 'none'; return b; }
   function head() {
     const hd = h(`<div class="screen__head"><div class="screen__head-left">${LOGO}</div><div class="screen__head-right"></div></div>`);
-    if (restartBtn) hd.querySelector('.screen__head-right').appendChild(restartBtn);
+    /* left side, next to the logo — the right side now also holds the
+       per-vehicle countdown beside the vehicle chip and was getting crowded */
+    if (restartBtn) hd.querySelector('.screen__head-left').appendChild(restartBtn);
     return hd;
   }
   function foot({ back, next, nextLabel } = {}) {
@@ -436,7 +489,7 @@
   const restartBtn = document.getElementById('restartBtn');
   if (restartBtn) {
     restartBtn.onclick = () => {
-      ui.currentVehicle = null; ui.draftsByVehicle = {}; ui.completedVehicles = new Set();
+      ui.currentVehicle = null; ui.draftsByVehicle = {}; ui.completedVehicles = new Set(); resetTimers();
       state.lang = 'en'; state.country = ''; save();
       noAnim = true; go('intro'); noAnim = false;
     };

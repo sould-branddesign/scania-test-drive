@@ -429,6 +429,20 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
    bigger there specifically, not the (unrelated) one in the question-flow
    header, which stays at its current size. */
 .cover .vehicle-chip { font-size: 20px; height: 46px; padding: 0 26px; }
+/* Cab Assessment's per-vehicle countdown (see cab.js): white while time
+   remains, red and counting up ("+0:42") once it's run out. Tabular
+   figures so the digits don't jiggle sideways every second. */
+.cab-timer {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  white-space: nowrap;
+  margin-right: 6px;
+}
+.cab-timer.is-over { color: #ff5a5a; }
+@media (min-width: 760px) { .cab-timer { font-size: 22px; margin-right: 10px; } }
 .vehicle-chip::before {
   content: '';
   position: absolute;
@@ -1631,6 +1645,12 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   body.test .screen__body:has(.metric:nth-of-type(2)) .question-head__text .screen__sub-group { margin-top: 8px; }
   body.test .screen__body:has(.metric:nth-of-type(2)) .question-head--cab + .screen__sub-group { margin-top: 2px; }
   body.test .screen__body:has(.metric:nth-of-type(2)) .question-metrics-cab { margin-top: 8px; }
+  /* Same centring as in portrait (see there) for the three-slider question:
+     in a browser window rather than the full-screen app it ran into the
+     BACK/NEXT buttons while sitting well below the progress bar. */
+  body.test .screen:has(.metric:nth-of-type(3)) .stepper { margin-bottom: 0; }
+  body.test .screen__body:has(.metric:nth-of-type(3)) .question-head--cab { margin-top: auto; }
+  body.test .screen__body:has(.metric:nth-of-type(3)) .question-metrics-cab { margin-bottom: auto; }
   body.test .screen { padding: 12px clamp(28px,6vw,80px) 12px; --pad-x: clamp(28px,6vw,80px); --pad-top: 12px; }
   body.test .screen__title { margin-top: 0; }
   body.test .screen__foot  { margin-top: 12px; }
@@ -1661,6 +1681,18 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
      value above, since its questions (icon+title row, then a separate
      full-width instruction block) run taller than Test Drive's. */
   body.test .screen__body .question-head--cab { margin-top: calc(8vh - 60px); }
+  /* The Cab Assessment question with three sliders ("Cab Entry") is the
+     tallest one, and when the page is open in a browser rather than as the
+     full-screen app (address bar and toolbars eat into the height) it no
+     longer fit — its last slider ran into the BACK/NEXT buttons. Instead
+     of pinning it to the top like the others, centre it in the space
+     between the progress bar and the footer. Auto margins rather than
+     justify-content:center, on purpose: when there is less room than it
+     needs they collapse to zero and it simply sits at the top, instead of
+     being pushed up underneath the progress bar. */
+  body.test .screen:has(.metric:nth-of-type(3)) .stepper { margin-bottom: 0; }
+  body.test .screen__body:has(.metric:nth-of-type(3)) .question-head--cab { margin-top: auto; }
+  body.test .screen__body:has(.metric:nth-of-type(3)) .question-metrics-cab { margin-bottom: auto; }
   /* A Cab Assessment category with a 3rd slider (e.g. an admin-edited "Cab
      Entry" with three metrics) pushed its last slider's end-labels under the
      footer buttons at the iPad 9th gen's exact 810x1080 portrait size —
