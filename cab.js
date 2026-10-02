@@ -238,9 +238,9 @@
     const s = screen();
     s.appendChild(head());
     const b = body();
-    b.appendChild(h(`<h1 class="screen__title">Welcome to the Cab Assessment.</h1>`));
+    b.appendChild(h(`<h1 class="screen__title">${esc(t().cabWelcome || 'Welcome to the Cab Assessment.')}</h1>`));
     const vehicleSection = h('<div class="vehicle-section"></div>');
-    vehicleSection.appendChild(h(`<p class="screen__label">Assess every vehicle — tap one to start:</p>`));
+    vehicleSection.appendChild(h(`<p class="screen__label">${esc(t().cabAssess || 'Assess every vehicle — tap one to start:')}</p>`));
     const grid = h('<div class="vgrid"></div>');
     state.cabVehicles.forEach((v) => {
       const done = ui.completedVehicles.has(v.id);
@@ -427,9 +427,9 @@
     s.appendChild(head());
     const wrap = h(`<div class="thanks__wrap">
       <h1 class="thanks__title">${t().thanks}</h1>
-      <p class="thanks__msg">Your Cab Assessment ratings for all vehicles have been submitted.</p>
+      <p class="thanks__msg">${esc(t().cabThanksMsg || 'Your Cab Assessment ratings for all vehicles have been submitted.')}</p>
       <div class="thanks__btns">
-        <button class="pill" data-act="next">Done</button>
+        <button class="pill" data-act="next">${esc(t().done || 'Done')}</button>
       </div>
     </div>`);
     $('[data-act="next"]', wrap).onclick = () => {
