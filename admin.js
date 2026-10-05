@@ -757,7 +757,6 @@
   let editLang = 'en';        // 'en' = edit the English source; any other code = edit that language's translations
   let translationDraft = null;
   let sheetsUnlocked = false; // Sheets webhook URL is read-only until explicitly unlocked — see sheetsCfgHtml()
-  let pendingIconCi = -1;     // which editDraft category the hidden file input's next change event is for
   /* Admin PIN, checked locally so entering the admin page never waits on a
      network round-trip. Must match ADMIN_PASSWORD in google-apps-script.js,
      update both together if it's ever rotated: the backend independently
@@ -805,47 +804,6 @@
   setInterval(touchAdminSession, 30000);
   window.addEventListener('pagehide', touchAdminSession);
   window.addEventListener('pageshow', (e) => { if (e.persisted && !hasFreshAdminKey()) location.reload(); });
-
-  const ROUTE_ICON_MAX_DIM = 900;      // px — plenty for the ~230x290 display box even at retina
-  const ROUTE_ICON_WARN_BYTES = 300000; // ~300KB data URI — still fine, but nudge toward SVG/smaller art
-
-  /* Reads a picked file into a data URI the category can carry directly (no
-     server-side file storage exists here — it just becomes part of the
-     synced question config, like title/instruction already are). SVGs pass
-     through untouched since they're already tiny and scale losslessly;
-     raster images get downscaled on a canvas first so a phone photo or an
-     unreduced export doesn't blow up the config that every device syncs. */
-  function readIconFile(file) {
-    return new Promise((resolve, reject) => {
-      if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const img = new Image();
-        img.onload = () => {
-          let { width, height } = img;
-          if (width > ROUTE_ICON_MAX_DIM || height > ROUTE_ICON_MAX_DIM) {
-            const scale = ROUTE_ICON_MAX_DIM / Math.max(width, height);
-            width = Math.round(width * scale);
-            height = Math.round(height * scale);
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width; canvas.height = height;
-          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/png'));
-        };
-        img.onerror = () => reject(new Error('Could not read that image'));
-        img.src = reader.result;
-      };
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
-  }
 
   /* current effective text for a category in `lang` — admin override, else the baked-in translation, else null */
   function effectiveCatTranslation(lang, catId) {
@@ -1068,31 +1026,21 @@
 
       <div class="sheets-cfg">${sheetsCfgHtml()}</div>
 
+      <div class="renumber-bar" id="renumberBar">
+        <p>Each question keeps a permanent column code in Google Sheets, so moving a question does not change which column its answers go to. After reordering, this renumbers the codes to match the order below.</p>
+        <button class="btn secondary" data-act="renumber">Renumber Sheets columns</button>
+      </div>
+
       <div id="qlist"></div>
       <button class="btn add" data-act="add-cat">+ Add category</button>
       <div class="editor__foot">
         <button class="btn secondary" data-act="cancel">Cancel</button>
         <button class="btn" data-act="save">Save changes</button>
       </div>
-      <input type="file" id="iconFileInput" accept=".svg,image/svg+xml,image/png,image/jpeg" style="display:none">
     </div>`);
     wrap.insertBefore(formSwitcher(), wrap.firstChild);
     wrap.addEventListener('click', editorClick);
     wrap.addEventListener('input', editorInput);
-    $('#iconFileInput', wrap).addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      e.target.value = '';
-      if (!file || pendingIconCi < 0) return;
-      const ci = pendingIconCi;
-      try {
-        const dataUrl = await readIconFile(file);
-        editDraft[ci].routeIcon = dataUrl;
-        if (dataUrl.length > ROUTE_ICON_WARN_BYTES) toast('Icon set — quite large, an SVG would sync faster');
-        renderQList();
-      } catch (err) {
-        toast('Could not read that image');
-      }
-    });
     $('#editLangSelect', wrap).addEventListener('change', (e) => {
       editLang = e.target.value;
       if (editLang !== 'en') translationDraft = buildTranslationDraft(editLang);
@@ -1144,7 +1092,20 @@
     return sparse;
   }
 
+  /* Rewrites every category/metric column code from its current position
+     (1, 2, 3 … and 1a, 1b … for multi-metric categories) — the one place a
+     permanent code is ever changed on purpose. Callers must follow it with
+     a rebuild of the Sheets tabs (repairAllReadableSheets), see 'renumber'. */
+  function renumberCodes() {
+    editDraft.forEach((cat, i) => {
+      cat.code = String(i + 1);
+      cat.metrics.forEach((m, mi) => { m.code = cat.metrics.length === 1 ? cat.code : cat.code + String.fromCharCode(97 + mi); });
+    });
+  }
+
   function updateEditorChrome() {
+    const bar = document.getElementById('renumberBar');
+    if (bar) bar.style.display = editLang === 'en' ? '' : 'none';
     const addCatBtn = document.querySelector('[data-act="add-cat"]');
     if (addCatBtn) addCatBtn.style.display = editLang === 'en' ? '' : 'none';
     const resetBtn = document.querySelector('[data-act="reset"]');
@@ -1173,15 +1134,9 @@
         <div class="field">
           <label>${activeForm === 'cab' ? 'Icon' : 'Route icon'}</label>
           <div class="icon-picker">
-            ${activeForm === 'cab'
-              ? (window.STD.CAB_ICONS[cat.id]
-                  ? `<img class="icon-picker__preview icon-picker__preview--cab" src="${esc(window.STD.CAB_ICONS[cat.id])}" alt="">`
-                  : `<div class="icon-picker__empty">No icon</div>`)
-              : (cat.routeIcon
-                  ? `<img class="icon-picker__preview" src="${esc(cat.routeIcon)}" alt="">`
-                  : `<div class="icon-picker__empty">No icon</div>`)}
-            ${activeForm === 'cab' ? '' : `<button class="btn secondary" type="button" data-act="icon-pick">Replace</button>
-            ${cat.routeIcon ? `<button class="iconbtn danger" type="button" data-act="icon-remove" title="Remove icon">✕</button>` : ''}`}
+            ${(activeForm === 'cab' ? window.STD.CAB_ICONS[cat.id] : cat.routeIcon)
+              ? `<img class="icon-picker__preview ${activeForm === 'cab' ? 'icon-picker__preview--cab' : ''}" src="${esc(activeForm === 'cab' ? window.STD.CAB_ICONS[cat.id] : cat.routeIcon)}" alt="">`
+              : `<div class="icon-picker__empty">No icon</div>`}
           </div>
         </div>
         <div class="metrics"></div>
@@ -1257,13 +1212,13 @@
       case 'down': if (ci < editDraft.length - 1) { [editDraft[ci + 1], editDraft[ci]] = [editDraft[ci], editDraft[ci + 1]]; renderQList(); } break;
       case 'add-metric': editDraft[ci].metrics.push({ id: slug('metric-' + Math.random()), label: 'New metric', min: 'Low', max: 'High', scale: 10 }); renderQList(); break;
       case 'del-metric': { const mi = Number(btn.closest('[data-mi]').dataset.mi); if (editDraft[ci].metrics.length > 1) { editDraft[ci].metrics.splice(mi, 1); renderQList(); } break; }
-      case 'icon-pick': {
-        pendingIconCi = ci;
-        const input = $('#iconFileInput');
-        if (input) input.click();
+      case 'renumber': {
+        if (!window.confirm('Renumber the Sheets columns so they follow the order below?\n\nOnly do this while no one is using the app. Afterwards, click "Save changes", then run repairAllReadableSheets and repairBackupReadableSheets in Apps Script to rebuild the sheet columns from the saved answers.')) break;
+        renumberCodes();
+        renderQList();
+        toast('Renumbered — click "Save changes" to apply', 5000);
         break;
       }
-      case 'icon-remove': editDraft[ci].routeIcon = ''; renderQList(); break;
       case 'reset':
         if (editLang === 'en') {
           editDraft = JSON.parse(JSON.stringify(activeForm === 'cab' ? DEFAULT_CAB_QUESTIONS : DEFAULT_QUESTIONS));
@@ -1279,10 +1234,16 @@
         renderQList(); break;
       case 'cancel': go('results'); break;
       case 'save': {
+        let codesChanged = false;
         if (editLang === 'en') {
+          const codeKey = (qs) => JSON.stringify(qs.map((q) => [q.id, q.code, q.metrics.map((m) => m.code)]));
+          codesChanged = codeKey(activeQuestions()) !== codeKey(normaliseQuestions(JSON.parse(JSON.stringify(editDraft))));
           if (activeForm === 'cab') { state.cabQuestions = normaliseQuestions(editDraft); save(); }
           else { window.ScaniaEval.setQuestions(editDraft); }
-          toast('Questions saved'); go('results');
+          toast(codesChanged
+            ? 'Questions saved. Column codes changed — now run repairAllReadableSheets and repairBackupReadableSheets in Apps Script.'
+            : 'Questions saved', codesChanged ? 12000 : 2200);
+          go('results');
         } else {
           state.translations[editLang] = sparseTranslationOverride(editLang, translationDraft);
           save();

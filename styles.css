@@ -1362,6 +1362,8 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
 }
 .input:focus, .textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(24, 200, 212, .15); }
 
+.renumber-bar { display: flex; align-items: center; gap: 18px; margin: 0 0 22px; padding: 14px 18px; border: 1px dashed var(--navy-600); border-radius: var(--radius-sm); }
+.renumber-bar p { margin: 0; flex: 1; font-size: 13px; line-height: 1.5; color: var(--ink-dim); }
 .icon-picker { display: flex; align-items: center; gap: 12px; }
 .icon-picker__preview, .icon-picker__empty {
   width: 64px; height: 64px;

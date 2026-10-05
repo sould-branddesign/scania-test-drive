@@ -452,8 +452,30 @@ function repairAllReadableSheets() {
   repairReadableSheet('Cab Assessment');
 }
 
-function repairReadableSheet(sheetName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+/* Samma ombyggnad för BACKUP-arket (BACKUP_SHEET_ID). Behövs efter att
+   frågornas kolumnkoder numrerats om i admin (knappen "Renumber Sheets
+   columns"): både huvudarket och backupen ska då byggas om från sina
+   Raw-ark, så rubrikerna stämmer med den nya ordningen. Konfigurationen
+   (kolumnkoderna) läses fortfarande från huvudarkets Config-ark.
+   Körs manuellt, precis som repairAllReadableSheets — inte nåbar utifrån. */
+function repairBackupReadableSheets() {
+  if (!BACKUP_SHEET_ID) {
+    Logger.log('Inget BACKUP_SHEET_ID konfigurerat — inget att reparera.');
+    return;
+  }
+  let backupSs;
+  try {
+    backupSs = SpreadsheetApp.openById(BACKUP_SHEET_ID);
+  } catch (err) {
+    Logger.log('Kan inte öppna backup-arket: ' + err.message);
+    return;
+  }
+  repairReadableSheet('Test Drive', backupSs);
+  repairReadableSheet('Cab Assessment', backupSs);
+}
+
+function repairReadableSheet(sheetName, targetSs) {
+  const ss = targetSs || SpreadsheetApp.getActiveSpreadsheet();
   const rawSheetName = 'Raw — ' + sheetName;
   const rawSheet = ss.getSheetByName(rawSheetName);
   if (!rawSheet || rawSheet.getLastRow() <= 1) {
