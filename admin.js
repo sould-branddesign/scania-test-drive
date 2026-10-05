@@ -164,7 +164,6 @@
         <div class="results__actions">
           <button class="btn" data-act="present" ${evald.length ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'}>▶ Present — ${filterGroup || 'All days'}</button>
           <button class="btn secondary" data-act="export" ${submissions.some(matchesFilter) ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'} title="Download the evaluations shown by the date and market filters as an Excel file">Export Excel</button>
-          <button class="btn secondary" data-act="clear">Clear data</button>
         </div>
       </div>
     </div>`));
@@ -277,7 +276,6 @@
           else toast((count - before) + ' new result' + (count - before === 1 ? '' : 's'));
         });
       }
-      if (a.dataset.act === 'clear') { submissions = submissions.filter((s) => (s.formId || 'testdrive') !== (activeForm === 'cab' ? 'cab' : 'testdrive')); filterGroup = toIso(new Date()); filterMarkets.clear(); state.answers = {}; if (activeForm !== 'cab') { state.vehicles = []; save(); } render(); toast('Data cleared'); }
       if (a.dataset.act === 'present') openDeck();
     });
     app.appendChild(wrap);
