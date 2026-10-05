@@ -1161,7 +1161,8 @@
     editDraft.forEach((cat, ci) => {
       const card = h(`<div class="qcard" data-ci="${ci}">
         <div class="qcard__bar">
-          <div class="qcard__idx" title="Column code in the Sheets export">${esc(cat.code)}</div>
+          <div class="qcard__idx" title="Position in the form">${ci + 1}</div>
+          ${cat.code !== String(ci + 1) ? `<span class="qcard__code" title="Permanent column code in the Sheets export — it stays with the question when it is moved, so collected answers keep landing in the same column">Sheets column ${esc(cat.code)}</span>` : ''}
           <div class="spacer"></div>
           <button class="iconbtn" data-act="up" ${ci === 0 ? 'disabled' : ''} title="Move up">↑</button>
           <button class="iconbtn" data-act="down" ${ci === editDraft.length - 1 ? 'disabled' : ''} title="Move down">↓</button>
@@ -1186,7 +1187,7 @@
       cat.metrics.forEach((m, mi) => {
         mEl.appendChild(h(`<div class="metric-edit" data-mi="${mi}">
           <div class="metric-edit__grid">
-            <div class="field" style="margin:0"><label>Metric label <span class="field__en" title="Column code in the Sheets export">#${esc(m.code)}</span></label><input class="input" data-mf="label" value="${esc(m.label)}"></div>
+            <div class="field" style="margin:0"><label>Metric label <span class="field__en" title="Column code in the Sheets export: ${esc(m.code)}">#${ci + 1}${cat.metrics.length > 1 ? String.fromCharCode(97 + mi) : ''}</span></label><input class="input" data-mf="label" value="${esc(m.label)}"></div>
             <div class="field" style="margin:0"><label>Left label</label><input class="input" data-mf="min" value="${esc(m.min)}"></div>
             <div class="field" style="margin:0"><label>Right label</label><input class="input" data-mf="max" value="${esc(m.max)}"></div>
             <button class="iconbtn danger" data-act="del-metric" ${cat.metrics.length === 1 ? 'disabled' : ''} title="Remove metric">✕</button>
@@ -1198,11 +1199,11 @@
   }
 
   function renderQListTranslation(list) {
-    activeQuestions().forEach((cat) => {
+    activeQuestions().forEach((cat, ci) => {
       const draft = translationDraft[cat.id];
       const card = h(`<div class="qcard" data-catid="${esc(cat.id)}">
         <div class="qcard__bar">
-          <div class="qcard__catlabel">${esc(cat.code)} · ${esc(cat.title)}</div>
+          <div class="qcard__catlabel">${ci + 1} · ${esc(cat.title)}</div>
         </div>
         <div class="field"><label>Category title <span class="field__en">EN: ${esc(cat.title)}</span></label><input class="input" data-f="title" placeholder="${esc(cat.title)}" value="${esc(draft.title)}"></div>
         <div class="field"><label>Instruction <span class="field__en">EN: ${esc(cat.instruction)}</span></label><textarea class="textarea" data-f="instruction" rows="2" placeholder="${esc(cat.instruction)}">${esc(draft.instruction)}</textarea></div>

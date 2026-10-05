@@ -1331,6 +1331,7 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   place-items: center;
   font-size: 14px;
 }
+.qcard__code { font-size: 12px; color: var(--ink-dim); opacity: .7; cursor: help; }
 .qcard__bar .spacer { flex: 1; }
 .qcard__catlabel { font-size: 15px; font-weight: 800; color: var(--teal-bright); }
 
