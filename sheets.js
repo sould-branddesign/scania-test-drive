@@ -178,23 +178,33 @@
     if (!pending.some((p) => Date.now() - p.at > RECONCILE_GRACE_MS)) return;
 
     reconciling = true;
+    let checkAgainSoon = false;
     try {
       const remote = await fetchAll();
-      if (!remote || !remote.ok) return; // can't verify right now — leave pending as-is, try again later
+      if (!remote || !remote.ok) { checkAgainSoon = true; return; } // can't verify right now — leave pending as-is, try again soon
 
       const landed = new Set((remote.evaluations || []).map((e) => e.timestamp));
       const stillPending = [];
       for (const p of pending) {
-        if (Date.now() - p.at <= RECONCILE_GRACE_MS) { stillPending.push(p); continue; }
+        if (Date.now() - p.at <= RECONCILE_GRACE_MS) { stillPending.push(p); checkAgainSoon = true; continue; }
         if (landed.has(p.submission.timestamp)) continue;   // confirmed — drop it
         try { await postSubmission(url, p.submission); } catch { /* still offline */ }
         stillPending.push({ at: Date.now(), first: p.first || p.at, submission: p.submission });   // reset the grace clock
+        checkAgainSoon = true;
       }
       savePending(stillPending);
     } finally {
       reconciling = false;
+      /* Don't wait for the slow periodic pass to find out whether a resend
+         landed (or whether the sheet was unreachable a moment ago, e.g.
+         right after wifi came back) — look again as soon as the grace
+         period is over. One timer at a time. */
+      if (checkAgainSoon && !confirmTimer) {
+        confirmTimer = setTimeout(() => { confirmTimer = null; reconcile(); }, RECONCILE_GRACE_MS + 5000);
+      }
     }
   }
+  let confirmTimer = null;
 
   window.addEventListener('online', () => reconcile());
   setInterval(reconcile, RECONCILE_INTERVAL_MS);
@@ -360,7 +370,12 @@
     function updateBadge() {
       const n = stuckCount();
       el.hidden = n === 0;
-      if (n) el.textContent = '⚠ ' + n + ' unsent — tap to retry';
+      if (!n) return;
+      /* Just resent and waiting to be confirmed (not offline): say so, rather
+         than "unsent", for the few seconds that check takes. */
+      const resending = navigator.onLine !== false
+        && loadPending().some((p) => Date.now() - p.at < RECONCILE_GRACE_MS + 8000);
+      el.textContent = resending ? 'Sending…' : '⚠ ' + n + ' unsent — tap to retry';
     }
     updateBadge();
     setInterval(updateBadge, 5000);

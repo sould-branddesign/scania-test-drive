@@ -272,7 +272,7 @@
       const metric = h(`<div class="metric">
         <div class="metric__top">
           <span class="metric__label">${esc(m.label)}</span>
-          <span class="metric__value" style="color:${brand.text || brand.solid}">${val}/${scale}</span>
+          <span class="metric__value" style="color:${brand.text || brand.solid}">${ui.draft[m.id] != null ? val : '–'}/${scale}</span>
         </div>
         <input class="slider" type="range" min="0" max="${scale}" step="1" value="${val}" style="--track:${brand.text || brand.solid}">
         <div class="metric__ends"><span>${esc(m.min)}</span><span>${esc(m.max)}</span></div>
@@ -281,6 +281,10 @@
       const valEl = $('.metric__value', metric);
       const paint = () => { const pct = (input.value / scale) * 100; input.style.background = `linear-gradient(90deg, ${brand.text || brand.solid} ${pct}%, var(--navy-700) ${pct}%)`; };
       input.oninput = () => { ui.draft[m.id] = Number(input.value); valEl.textContent = `${input.value}/${scale}`; paint(); };
+      /* Touching a slider and leaving it on 0 is a real answer of 0 — 'input'
+         only fires when the value changes, so without this a deliberate 0
+         was never recorded. A slider nobody touched at all stays unanswered, shown as –/10. */
+      input.addEventListener('pointerup', () => { if (ui.draft[m.id] == null) { ui.draft[m.id] = Number(input.value); valEl.textContent = `${input.value}/${scale}`; } });
       paint();
       wrap.appendChild(metric);
     });
