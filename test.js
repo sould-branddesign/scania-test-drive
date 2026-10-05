@@ -371,7 +371,7 @@
   function body() { const b = h('<div class="screen__body"></div>'); if (noAnim) b.style.animation = 'none'; return b; }
   function head() {
     const hd = h(`<div class="screen__head"><div class="screen__head-left">${LOGO}</div><div class="screen__head-right"></div></div>`);
-    if (restartBtn) hd.querySelector('.screen__head-right').appendChild(restartBtn);
+    if (restartBtn) hd.querySelector('.screen__head-left').appendChild(restartBtn);
     return hd;
   }
   function foot({ back, next, nextLabel } = {}) {
