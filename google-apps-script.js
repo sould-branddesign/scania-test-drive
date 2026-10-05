@@ -441,9 +441,10 @@ function readConfig() {
    nåbar via doGet/doPost, med avsikt — en skrivning som raderar och
    bygger om en hel flik ska aldrig kunna triggas utifrån.
 
-   KÄND BEGRÄNSNING: kolumnen "Language" kan inte återskapas — språket
-   sparades aldrig i Raw-arkets JSON, bara i den läsbara raden vid
-   själva inskicket, så den blir tom för alla rader efter en reparation.
+   KÄND BEGRÄNSNING: kolumnen "Language" återskapas bara för rader som
+   skickats in efter att språket började sparas i Raw-arkets JSON (5 okt
+   2026). Äldre rader har inget språk i Raw och blir tomma efter en
+   reparation.
    Svar på frågor som sedan tagits bort ur den aktuella konfigurationen
    visas inte längre här (kolumnerna byggs efter DAGENS frågor) — men
    finns fortfarande kvar orört i Raw-arkets JSON. */
@@ -512,7 +513,7 @@ function repairReadableSheet(sheetName, targetSs) {
     const row = [
       ts,
       entry.group || '',
-      '', // språket sparades aldrig i Raw — kan inte återskapas
+      entry.lang || '', // saknas på rader skickade före den 5 okt 2026 (språket lades då till i Raw)
       entry.country || '',
       entry.formId || '',
       entry.vehicleName || '',
@@ -558,7 +559,7 @@ function repairReadableSheet(sheetName, targetSs) {
    rader den inte redan hittar i backupens Raw-ark (matchat på timestamp).
 
    KÄND BEGRÄNSNING: samma som repairReadableSheet ovan — kolumnen
-   "Language" kan inte återskapas, den sparades aldrig i Raw-arkets JSON.
+   "Language" finns bara för rader skickade efter 5 okt 2026.
 
    Körs manuellt: välj "backfillBackup" i funktionslistan högst upp i
    Apps Script-redigeraren och klicka Kör. Inte nåbar via doGet/doPost,
@@ -614,7 +615,7 @@ function backfillSheetIntoBackup(ss, backupSs, sheetName) {
     const row = [
       entry.timestamp,
       entry.group || '',
-      '', // språket sparades aldrig i Raw — kan inte återskapas
+      entry.lang || '', // saknas på rader skickade före den 5 okt 2026 (språket lades då till i Raw)
       entry.country || '',
       entry.formId || '',
       entry.vehicleName || '',

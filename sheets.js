@@ -67,7 +67,7 @@
       });
     });
     const sheetName = (formId === 'cab') ? 'Cab Assessment' : 'Test Drive';
-    return { headers, row, sheetName, raw: { timestamp, group: group || '', country: country || '', formId: formId || 'testdrive', vehicleId, vehicleName, vehicleBrand, answers } };
+    return { headers, row, sheetName, raw: { timestamp, lang: lang || '', group: group || '', country: country || '', formId: formId || 'testdrive', vehicleId, vehicleName, vehicleBrand, answers } };
   }
 
   /* Lightweight, read-only connectivity check for admin's "Test connection"
