@@ -644,6 +644,81 @@ function backfillSheetIntoBackup(ss, backupSs, sheetName) {
   Logger.log('Fyllde i ' + filled + ' saknade rader i backupen för ' + sheetName + '.');
 }
 
+/* ---- Engångs: arkivera och töm testdata inför det riktiga eventet ----
+
+   Kopierar först varje resultatflik till en egen "Arkiv <datum> <tid> …"-flik
+   och tömmer sedan originalet på alla rader utom rubrikraden — i BÅDE
+   huvudarket och backup-arket. Det som arkiveras är de fyra flikarna
+   Test Drive, Cab Assessment, Raw — Test Drive och Raw — Cab Assessment.
+   Config-arket (frågorna) och Frågekoder rörs inte. En arkivflik skapas
+   alltid först och kontrolleras (samma antal rader, samma första och sista
+   rad) innan originalet töms — blir kopian inte identisk töms inget, och
+   inget raderas någonsin, så det går alltid att klistra tillbaka.
+   Arkivflikarna läses inte av appen (den letar efter exakta flik-namn),
+   så de påverkar varken resultatvyn eller daglig kontroll.
+
+   OBS innan du kör: se till att ingen platta visar "unsent"-märket på
+   startskärmen. En platta som fortfarande väntar på att få skicka ett
+   gammalt inskick skickar det igen så fort fliken är tom.
+
+   Körs manuellt: välj "countTestData" först för att bara se vad som finns
+   (ändrar ingenting, resultatet står under Körningslogg), därefter
+   "archiveAndClearTestData". Inte nåbar via doGet/doPost, med avsikt —
+   samma anledning som repairAllReadableSheets. */
+const RESULT_SHEET_NAMES = ['Test Drive', 'Cab Assessment', 'Raw — Test Drive', 'Raw — Cab Assessment'];
+
+function countTestData() {
+  const targets = [['huvudarket', SpreadsheetApp.getActiveSpreadsheet()]];
+  if (BACKUP_SHEET_ID) {
+    try { targets.push(['backup-arket', SpreadsheetApp.openById(BACKUP_SHEET_ID)]); }
+    catch (err) { Logger.log('Kan inte öppna backup-arket: ' + err.message); }
+  }
+  targets.forEach((t) => {
+    RESULT_SHEET_NAMES.forEach((name) => {
+      const sheet = t[1].getSheetByName(name);
+      Logger.log(t[0] + ' · ' + name + ': ' + (sheet ? Math.max(sheet.getLastRow() - 1, 0) + ' rader' : 'finns inte'));
+    });
+  });
+}
+
+function archiveAndClearTestData() {
+  const stamp = Utilities.formatDate(new Date(), 'Europe/Stockholm', 'yyyy-MM-dd HHmm');
+  archiveAndClearIn(SpreadsheetApp.getActiveSpreadsheet(), 'huvudarket', stamp);
+  if (!BACKUP_SHEET_ID) return;
+  try {
+    archiveAndClearIn(SpreadsheetApp.openById(BACKUP_SHEET_ID), 'backup-arket', stamp);
+  } catch (err) {
+    Logger.log('Kan inte öppna backup-arket: ' + err.message);
+  }
+}
+
+function archiveAndClearIn(ss, label, stamp) {
+  RESULT_SHEET_NAMES.forEach((name) => {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet) { Logger.log(label + ' · ' + name + ': finns inte — hoppar över.'); return; }
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow <= 1) { Logger.log(label + ' · ' + name + ': redan tom.'); return; }
+
+    const archive = sheet.copyTo(ss);
+    let archiveName = 'Arkiv ' + stamp + ' ' + name;
+    for (let n = 2; ss.getSheetByName(archiveName); n++) archiveName = 'Arkiv ' + stamp + ' ' + name + ' (' + n + ')';
+    archive.setName(archiveName);
+    archive.setTabColor('#888888');
+
+    const same = archive.getLastRow() === lastRow
+      && archive.getLastColumn() === lastCol
+      && JSON.stringify(archive.getRange(2, 1, 1, lastCol).getValues()) === JSON.stringify(sheet.getRange(2, 1, 1, lastCol).getValues())
+      && JSON.stringify(archive.getRange(lastRow, 1, 1, lastCol).getValues()) === JSON.stringify(sheet.getRange(lastRow, 1, 1, lastCol).getValues());
+    if (!same) {
+      Logger.log(label + ' · ' + name + ': arkivkopian blev inte identisk — INGET tömdes. Kontrollera fliken "' + archiveName + '".');
+      return;
+    }
+    sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+    Logger.log(label + ' · ' + name + ': ' + (lastRow - 1) + ' rader arkiverade i "' + archiveName + '" och tömda.');
+  });
+}
+
 /* ---- Engångsstädning: ta bort exakta dubbletter ur ett Raw-ark ----
 
    Tar bort rader med EXAKT samma timestamp (millisekund-precision — en

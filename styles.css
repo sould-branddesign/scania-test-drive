@@ -296,6 +296,18 @@ body.test.is-intro .bg-hex-glow { opacity: 0; }
   border: none;
   opacity: 0;
 }
+.sync-badge {
+  position: fixed; left: 14px; bottom: 12px; z-index: 60;
+  display: none;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 190, 80, .55);
+  border-radius: 999px;
+  background: rgba(40, 28, 6, .8);
+  color: #ffbe50;
+  font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1; letter-spacing: .02em;
+  cursor: pointer;
+}
+body.is-intro .sync-badge:not([hidden]) { display: block; }
 .screen__head-left, .screen__head-right { display: flex; align-items: center; gap: 14px; }
 .restart-link {
   font-size: 11px;
@@ -1333,6 +1345,12 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
 }
 .qcard__code { font-size: 12px; color: var(--ink-dim); opacity: .7; cursor: help; }
 .qcard__bar .spacer { flex: 1; }
+.tr-badge { font-size: 12px; font-weight: 700; padding: 5px 10px; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+.tr-badge--ok { color: #5fe0a0; border-color: rgba(95, 224, 160, .4); }
+.tr-badge--stale { color: #ffbe50; border-color: rgba(255, 190, 80, .55); }
+.tr-badge--unverified { color: var(--ink-dim); border-color: var(--navy-600); }
+.tr-badge--missing { color: var(--ink-faint); border-color: var(--navy-600); }
+.tr-badge__btn { padding: 5px 12px; font-size: 12px; }
 .qcard__catlabel { font-size: 15px; font-weight: 800; color: var(--teal-bright); }
 
 .lang-edit-bar { background: rgba(10,30,68,.45); border: 1px solid rgba(27,50,98,.8); border-radius: 14px; padding: 20px 24px; margin-bottom: 32px; }

@@ -7,7 +7,7 @@
   'use strict';
   const { $, h, esc, clamp, slug, BRANDS, state, save, seedDemo,
           vehicleCategoryScore, normaliseCategory, normaliseQuestions,
-          DEFAULT_QUESTIONS, DEFAULT_CAB_QUESTIONS, LANGS, QI18N } = window.STD;
+          DEFAULT_QUESTIONS, DEFAULT_CAB_QUESTIONS, LANGS, QI18N, srcHash, translationStatus } = window.STD;
 
   let view = 'results';   // 'results' | 'editor'
   let submissions = [];   // all submissions loaded from Sheets
@@ -70,15 +70,16 @@
   function go(v) { view = v; render(); syncNav(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
   /* Compute state.answers from submissions filtered by formId and filterGroup (in-memory, not saved) */
-  function applyFilter() {
+  function matchesFilter(s) {
     const formId = activeForm === 'cab' ? 'cab' : 'testdrive';
-    const filtered = submissions.filter((s) => {
-      const sForm = s.formId || 'testdrive';
-      if (sForm !== formId) return false;
-      if (filterGroup && toIso(s.group) !== toIso(filterGroup)) return false;
-      if (filterMarkets.size && !filterMarkets.has(s.country)) return false;
-      return true;
-    });
+    if ((s.formId || 'testdrive') !== formId) return false;
+    if (filterGroup && toIso(s.group) !== toIso(filterGroup)) return false;
+    if (filterMarkets.size && !filterMarkets.has(s.country)) return false;
+    return true;
+  }
+
+  function applyFilter() {
+    const filtered = submissions.filter(matchesFilter);
     const sums = {}, counts = {};
     filtered.forEach(({ vehicleId, answers: a }) => {
       if (!vehicleId || !a) return;
@@ -146,6 +147,8 @@
           <polyline points="20 6 9 17 4 12"></polyline>
         </svg>
       </button>`));
+      const unsent = window.STDSheets.loadQueue().length;
+      if (unsent) tools.insertBefore(h(`<button class="btn secondary" data-act="sheets-flush-results" title="Evaluations from this device that Sheets has not confirmed yet">Sync now (${unsent} unsent)</button>`), tools.firstChild);
       topRow.appendChild(tools);
     }
     wrap.appendChild(topRow);
@@ -160,6 +163,7 @@
         <div class="group-setter" id="groupSetter"></div>
         <div class="results__actions">
           <button class="btn" data-act="present" ${evald.length ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'}>▶ Present — ${filterGroup || 'All days'}</button>
+          <button class="btn secondary" data-act="export" ${submissions.some(matchesFilter) ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'} title="Download the evaluations shown by the date and market filters as an Excel file">Export Excel</button>
           <button class="btn secondary" data-act="clear">Clear data</button>
         </div>
       </div>
@@ -237,6 +241,15 @@
       }
       const a = e.target.closest('[data-act]'); if (!a) return;
       if (a.dataset.act === 'sheets-test') { testConnection(); }
+      if (a.dataset.act === 'sheets-flush-results') {
+        a.disabled = true; a.textContent = 'Syncing…';
+        window.STDSheets.flushQueue().then(() => {
+          const left = window.STDSheets.loadQueue().length;
+          toast(left ? left + ' still unsent — will keep retrying' : 'Everything is confirmed in Sheets');
+          if (view === 'results') render();
+        });
+      }
+      if (a.dataset.act === 'export') exportResults();
       if (a.dataset.act === 'sheets-refresh' && !a.classList.contains('is-loading')) {
         const before = submissions.length;
         a.classList.add('is-loading');
@@ -268,6 +281,68 @@
       if (a.dataset.act === 'present') openDeck();
     });
     app.appendChild(wrap);
+  }
+
+  /* ---------- Excel export ----------
+     One row per submitted evaluation, for whatever the date/market filters
+     currently show. SheetJS is loaded from cdnjs only when the button is
+     clicked (nothing else on the page needs it); if it can't be loaded the
+     same data downloads as a semicolon-separated CSV that Excel opens too. */
+  const SHEETJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  function loadSheetJS() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = SHEETJS_URL;
+      s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error('XLSX missing')));
+      s.onerror = () => reject(new Error('Could not load the Excel library'));
+      document.head.appendChild(s);
+    });
+  }
+  const stockholm = (iso) => {
+    const d = new Date(iso); if (isNaN(d)) return iso || '';
+    return d.toLocaleString('sv-SE', { timeZone: 'Europe/Stockholm' });   // 2026-10-05 11:36:51
+  };
+  function exportTable() {
+    const metrics = [];
+    activeQuestions().forEach((cat, ci) => cat.metrics.forEach((m, mi) => {
+      metrics.push({ id: m.id, head: (ci + 1) + (cat.metrics.length > 1 ? String.fromCharCode(97 + mi) : '') + ' ' + m.label, cat: cat.title, label: m.label, min: m.min, max: m.max, pos: (ci + 1) + (cat.metrics.length > 1 ? String.fromCharCode(97 + mi) : '') });
+    }));
+    const head = ['Time', 'Day', 'Market', 'Language', 'Vehicle', 'Brand'].concat(metrics.map((m) => m.head));
+    const rows = submissions.filter(matchesFilter)
+      .sort((x, y) => String(x.timestamp).localeCompare(String(y.timestamp)))
+      .map((s) => [stockholm(s.timestamp), s.group || '', s.country || '', s.lang || '', s.vehicleName || '', s.vehicleBrand || '']
+        .concat(metrics.map((m) => (s.answers && s.answers[m.id] != null ? Number(s.answers[m.id]) : ''))));
+    const questions = [['Column', 'Category', 'Question', 'Left label', 'Right label']]
+      .concat(metrics.map((m) => [m.pos, m.cat, m.label, m.min, m.max]));
+    return { head, rows, questions };
+  }
+  async function exportResults() {
+    const { head, rows, questions } = exportTable();
+    if (!rows.length) { toast('Nothing to export for this filter'); return; }
+    const formName = activeForm === 'cab' ? 'Cab Assessment' : 'Test Drive';
+    const day = filterGroup ? toIso(filterGroup) : 'all-days';
+    const base = 'scania-' + formName.toLowerCase().replace(/\s+/g, '-') + '-' + day + (filterMarkets.size ? '-' + [...filterMarkets].join('+').toLowerCase().replace(/\s+/g, '-') : '');
+    try {
+      const XLSX = await loadSheetJS();
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([head].concat(rows));
+      ws['!cols'] = head.map((h2, i) => ({ wch: i === 0 ? 19 : i < 6 ? 18 : 14 }));
+      XLSX.utils.book_append_sheet(wb, ws, formName);
+      const wq = XLSX.utils.aoa_to_sheet(questions);
+      wq['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 50 }, { wch: 22 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, wq, 'Questions');
+      XLSX.writeFile(wb, base + '.xlsx');
+      toast('Exported ' + rows.length + ' evaluation' + (rows.length === 1 ? '' : 's'));
+    } catch (err) {
+      const cell = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+      const csv = '\ufeff' + [head].concat(rows).map((r) => r.map(cell).join(';')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = base + '.csv';
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('Excel library unavailable — downloaded as CSV instead');
+    }
   }
 
   function buildGroupSetter(container) {
@@ -1019,7 +1094,7 @@
         <label for="editLangSelect">Editing text for</label>
         <select class="std-select" id="editLangSelect">
           <option value="en">English (source — add/remove/reorder here)</option>
-          ${LANGS.filter((l) => l.code !== 'en').map((l) => `<option value="${esc(l.code)}">${esc(l.label)}</option>`).join('')}
+          ${LANGS.filter((l) => l.code !== 'en').map((l) => { const n = outdatedCount(l.code); return `<option value="${esc(l.code)}">${esc(l.label)}${n ? ' — ' + n + ' to check' : ''}</option>`; }).join('')}
         </select>
         <p class="lang-edit-bar__hint">Pick a language to translate the categories and metrics below. Leave a field empty to fall back to the English text. Categories, metrics and their order can only be changed in English — translations just override the wording.</p>
       </div>
@@ -1052,11 +1127,19 @@
     updateEditorChrome();
   }
 
+  /* how many categories of the active form need a look in `lang` (English
+     changed since, or never checked) — categories with no translation at all
+     are not counted, they simply fall back to English */
+  function outdatedCount(lang) {
+    return activeQuestions().filter((cat) => { const st = translationStatus(lang, cat); return st === 'stale' || st === 'unverified'; }).length;
+  }
+
   function buildTranslationDraft(lang) {
     const draft = {};
     activeQuestions().forEach((cat) => {
       const eff = effectiveCatTranslation(lang, cat.id) || {};
-      draft[cat.id] = { title: eff.title || '', instruction: eff.instruction || '', metrics: {} };
+      const ov = state.translations[lang] && state.translations[lang][cat.id];
+      draft[cat.id] = { title: eff.title || '', instruction: eff.instruction || '', metrics: {}, _src: (ov && ov._src) || '' };
       cat.metrics.forEach((m) => {
         const em = (eff.metrics && eff.metrics[m.id]) || {};
         draft[cat.id].metrics[m.id] = { label: em.label || '', min: em.min || '', max: em.max || '' };
@@ -1087,6 +1170,11 @@
         if (Object.keys(mo).length) metricsOverride[m.id] = mo;
       });
       if (Object.keys(metricsOverride).length) catOverride.metrics = metricsOverride;
+      /* Remember which English this was last checked against: set when the
+         wording was actually edited here, or when "Mark as up to date" was
+         pressed; otherwise keep whatever it had. */
+      if (d._reviewed || Object.keys(catOverride).length) catOverride._src = srcHash(cat);
+      else if (d._src) catOverride._src = d._src;
       if (Object.keys(catOverride).length) sparse[cat.id] = catOverride;
     });
     return sparse;
@@ -1157,12 +1245,26 @@
     });
   }
 
+  /* Status chip for one category in the translation view. Judges the draft
+     as it stands (so "Mark as up to date" shows up immediately). */
+  function translationBadge(lang, cat, draft) {
+    let st = translationStatus(lang, cat);
+    if (draft && draft._reviewed) st = 'ok';
+    const btn = '<button class="btn secondary tr-badge__btn" type="button" data-act="mark-reviewed">Mark as up to date</button>';
+    if (st === 'ok') return '<span class="tr-badge tr-badge--ok">✓ Up to date</span>';
+    if (st === 'stale') return '<span class="tr-badge tr-badge--stale" title="The English text was edited after this translation was last checked">⚠ English changed since this was translated</span>' + btn;
+    if (st === 'unverified') return '<span class="tr-badge tr-badge--unverified" title="This translation exists but has never been checked against the current English">Not checked against the current English</span>' + btn;
+    return '<span class="tr-badge tr-badge--missing">No translation — showing English</span>';
+  }
+
   function renderQListTranslation(list) {
     activeQuestions().forEach((cat, ci) => {
       const draft = translationDraft[cat.id];
       const card = h(`<div class="qcard" data-catid="${esc(cat.id)}">
         <div class="qcard__bar">
           <div class="qcard__catlabel">${ci + 1} · ${esc(cat.title)}</div>
+          <div class="spacer"></div>
+          ${translationBadge(editLang, cat, draft)}
         </div>
         <div class="field"><label>Category title <span class="field__en">EN: ${esc(cat.title)}</span></label><input class="input" data-f="title" placeholder="${esc(cat.title)}" value="${esc(draft.title)}"></div>
         <div class="field"><label>Instruction <span class="field__en">EN: ${esc(cat.instruction)}</span></label><textarea class="textarea" data-f="instruction" rows="2" placeholder="${esc(cat.instruction)}">${esc(draft.instruction)}</textarea></div>
@@ -1212,6 +1314,15 @@
       case 'down': if (ci < editDraft.length - 1) { [editDraft[ci + 1], editDraft[ci]] = [editDraft[ci], editDraft[ci + 1]]; renderQList(); } break;
       case 'add-metric': editDraft[ci].metrics.push({ id: slug('metric-' + Math.random()), label: 'New metric', min: 'Low', max: 'High', scale: 10 }); renderQList(); break;
       case 'del-metric': { const mi = Number(btn.closest('[data-mi]').dataset.mi); if (editDraft[ci].metrics.length > 1) { editDraft[ci].metrics.splice(mi, 1); renderQList(); } break; }
+      case 'mark-reviewed': {
+        const catEl2 = btn.closest('[data-catid]');
+        if (catEl2 && translationDraft && translationDraft[catEl2.dataset.catid]) {
+          translationDraft[catEl2.dataset.catid]._reviewed = true;
+          renderQList();
+          toast('Marked as up to date — click "Save changes" to keep it');
+        }
+        break;
+      }
       case 'renumber': {
         if (!window.confirm('Renumber the Sheets columns so they follow the order below?\n\nOnly do this while no one is using the app. Afterwards, click "Save changes", then run repairAllReadableSheets and repairBackupReadableSheets in Apps Script to rebuild the sheet columns from the saved answers.')) break;
         renumberCodes();
@@ -1240,9 +1351,14 @@
           codesChanged = codeKey(activeQuestions()) !== codeKey(normaliseQuestions(JSON.parse(JSON.stringify(editDraft))));
           if (activeForm === 'cab') { state.cabQuestions = normaliseQuestions(editDraft); save(); }
           else { window.ScaniaEval.setQuestions(editDraft); }
-          toast(codesChanged
+          /* which checked translations does this English edit leave behind? */
+          const stale = LANGS.filter((l) => l.code !== 'en' && window.STD.QI18N_SRC[l.code])
+            .map((l) => ({ l, n: activeQuestions().filter((cat) => translationStatus(l.code, cat) === 'stale').length }))
+            .filter((x) => x.n);
+          const staleMsg = stale.length ? ' Translations to review: ' + stale.map((x) => x.l.label.split(' / ')[0] + ' (' + x.n + ')').join(', ') + '.' : '';
+          toast((codesChanged
             ? 'Questions saved. Column codes changed — now run repairAllReadableSheets and repairBackupReadableSheets in Apps Script.'
-            : 'Questions saved', codesChanged ? 12000 : 2200);
+            : 'Questions saved.') + staleMsg, codesChanged || staleMsg ? 12000 : 2200);
           go('results');
         } else {
           state.translations[editLang] = sparseTranslationOverride(editLang, translationDraft);

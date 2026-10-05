@@ -150,7 +150,7 @@
     const url = getUrl();
     if (!url) return { status: 'no-url' };
     const pending = loadPending();
-    pending.push({ at: Date.now(), submission });
+    pending.push({ at: Date.now(), first: Date.now(), submission });
     savePending(pending);
     try {
       await postSubmission(url, submission);
@@ -188,7 +188,7 @@
         if (Date.now() - p.at <= RECONCILE_GRACE_MS) { stillPending.push(p); continue; }
         if (landed.has(p.submission.timestamp)) continue;   // confirmed — drop it
         try { await postSubmission(url, p.submission); } catch { /* still offline */ }
-        stillPending.push({ at: Date.now(), submission: p.submission });   // reset the grace clock
+        stillPending.push({ at: Date.now(), first: p.first || p.at, submission: p.submission });   // reset the grace clock
       }
       savePending(stillPending);
     } finally {
@@ -339,7 +339,36 @@
   setInterval(syncConfig, CONFIG_SYNC_INTERVAL_MS);
   syncConfig();
 
+  /* ---- "unsent" badge on the kiosk intro screen ----
+     A submission only shows up here once it has been waiting well past the
+     normal confirmation window — i.e. it really isn't getting through — so
+     staff walking past a tablet can see at a glance that something is
+     stuck, and tap the badge to retry right away. Hidden everywhere except
+     the intro screen (see .sync-badge in styles.css) and on the admin page. */
+  const STUCK_AFTER_MS = 45000;
+  function stuckCount() {
+    return loadPending().filter((p) => Date.now() - (p.first || p.at || 0) > STUCK_AFTER_MS).length;
+  }
+  function initSyncBadge() {
+    if (/admin\.html/.test(location.pathname)) return;
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'sync-badge';
+    el.hidden = true;
+    el.addEventListener('click', () => { el.textContent = 'Sending…'; reconcile().then(updateBadge, updateBadge); });
+    document.body.appendChild(el);
+    function updateBadge() {
+      const n = stuckCount();
+      el.hidden = n === 0;
+      if (n) el.textContent = '⚠ ' + n + ' unsent — tap to retry';
+    }
+    updateBadge();
+    setInterval(updateBadge, 5000);
+  }
+  if (document.body) initSyncBadge(); else document.addEventListener('DOMContentLoaded', initSyncBadge);
+
   window.STDSheets = {
+    stuckCount,
     submit, getUrl, setUrl, fetchAll, ping,
     flushQueue: reconcile,     // kept for admin.js
     loadQueue: loadPending,    // kept for admin.js's "N pending" display

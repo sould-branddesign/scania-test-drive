@@ -462,6 +462,55 @@
       safety:     { title: 'Безпека та пряма видимість', instruction: 'Оцініть пряме поле зору. Предмети розміщені на позначених позиціях на підлозі — відзначте, які видно з сидіння водія.', metrics: { direct_vision: { label: 'Пряма видимість — спереду та з боків', min: 'Дуже обмежена', max: 'Відмінна' }, mirror_visibility: { label: 'Видимість бокових дзеркал', min: 'Заблоковано', max: 'Чітко' } } },
     },
   };
+  /* ---------- is a translation still in step with the English? ----------
+     Built-in translations (QI18N) are keyed by category id, so editing the
+     English text silently leaves them describing the old wording. To make
+     that visible, every checked translation carries a fingerprint of the
+     English it was written against (QI18N_SRC for the built-in ones, `_src`
+     on an admin override); admin compares it with the English as it is now.
+     Typo fixes in the English do count as a change on purpose — it is cheap
+     to look at a translation and press "Mark as up to date". */
+  function srcHash(cat) {
+    const n = (x) => String(x == null ? '' : x).replace(/\s+/g, ' ').trim();
+    const s = JSON.stringify([n(cat.title), n(cat.instruction), (cat.metrics || []).map((m) => [m.id, n(m.label), n(m.min), n(m.max)])]);
+    let hsh = 5381;
+    for (let i = 0; i < s.length; i++) hsh = ((hsh * 33) ^ s.charCodeAt(i)) >>> 0;
+    return hsh.toString(36);
+  }
+  /* French, Portuguese and Spanish were checked word by word against the
+     English as it stood on 2026-10-05; these are fingerprints of that
+     English (srcHash). Other languages have no fingerprint → 'unverified'. */
+  const QI18N_SRC = {};
+  QI18N_SRC.fr = QI18N_SRC.pt = QI18N_SRC.es = {
+    "cab": "1e23avy",
+    "steering": "127w8tu",
+    "parking": "1swr08n",
+    "category-6-6": "i4tozv",
+    "category-7-7": "ylgqol",
+    "overall": "1vih4xe",
+    "boarding": "1gggs5x",
+    "cross_cab_access": "12ndffm",
+    "ergonomics": "1y15wsa",
+    "ergonomics_driving": "1fjezk2",
+    "fit_finish": "q8kuqk",
+    "category-8-8": "hleptf",
+    "safety": "xqru2e",
+    "cab_exit": "1j7684h"
+  };
+  /* 'ok' · 'stale' (English changed since) · 'unverified' (a translation
+     exists but was never checked against the current English) · 'missing' */
+  function translationStatus(lang, cat) {
+    if (!lang || lang === 'en') return 'ok';
+    const override = state.translations[lang] && state.translations[lang][cat.id];
+    const base = QI18N[lang] && QI18N[lang][cat.id];
+    const cur = srcHash(cat);
+    if (override && override._src) return override._src === cur ? 'ok' : 'stale';
+    const fp = QI18N_SRC[lang] && QI18N_SRC[lang][cat.id];
+    if (base && fp) return fp === cur ? 'ok' : 'stale';
+    if (base || (override && (override.title || override.instruction || override.metrics))) return 'unverified';
+    return 'missing';
+  }
+
   const tCat = (cat) => {
     const lang = state.lang;
     const base = QI18N[lang] && QI18N[lang][cat.id];
@@ -694,7 +743,7 @@
      ============================================================ */
   const STD = {
     STORE_KEY, $, h, esc, clamp, hashStr, slug,
-    BRANDS, brandOf, DEFAULT_VEHICLES, DEFAULT_QUESTIONS, DEFAULT_CAB_VEHICLES, DEFAULT_CAB_QUESTIONS, LANGS, COUNTRIES, T, t, tCat, QI18N,
+    BRANDS, brandOf, srcHash, translationStatus, QI18N_SRC, DEFAULT_VEHICLES, DEFAULT_QUESTIONS, DEFAULT_CAB_VEHICLES, DEFAULT_CAB_QUESTIONS, LANGS, COUNTRIES, T, t, tCat, QI18N,
     state, save, load, seedDemo, normaliseCategory, normaliseQuestions, getConfigBundle, applyRemoteConfig,
     vehicleCategoryScore, vehicleOverall, evaluatedVehicles, brandsPresent, brandCategoryScore, computeAll,
     onQuestionsChanged: null,   // pages set this to re-render when questions change
