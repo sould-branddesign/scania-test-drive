@@ -1171,13 +1171,17 @@
         <div class="field"><label>Category title</label><input class="input" data-f="title" value="${esc(cat.title)}"></div>
         <div class="field"><label>Instruction</label><textarea class="textarea" data-f="instruction" rows="2">${esc(cat.instruction)}</textarea></div>
         <div class="field">
-          <label>Route icon</label>
+          <label>${activeForm === 'cab' ? 'Icon' : 'Route icon'}</label>
           <div class="icon-picker">
-            ${cat.routeIcon
-              ? `<img class="icon-picker__preview" src="${esc(cat.routeIcon)}" alt="">`
-              : `<div class="icon-picker__empty">No icon</div>`}
-            <button class="btn secondary" type="button" data-act="icon-pick">Replace</button>
-            ${cat.routeIcon ? `<button class="iconbtn danger" type="button" data-act="icon-remove" title="Remove icon">✕</button>` : ''}
+            ${activeForm === 'cab'
+              ? (window.STD.CAB_ICONS[cat.id]
+                  ? `<img class="icon-picker__preview icon-picker__preview--cab" src="${esc(window.STD.CAB_ICONS[cat.id])}" alt="">`
+                  : `<div class="icon-picker__empty">No icon</div>`)
+              : (cat.routeIcon
+                  ? `<img class="icon-picker__preview" src="${esc(cat.routeIcon)}" alt="">`
+                  : `<div class="icon-picker__empty">No icon</div>`)}
+            ${activeForm === 'cab' ? '' : `<button class="btn secondary" type="button" data-act="icon-pick">Replace</button>
+            ${cat.routeIcon ? `<button class="iconbtn danger" type="button" data-act="icon-remove" title="Remove icon">✕</button>` : ''}`}
           </div>
         </div>
         <div class="metrics"></div>

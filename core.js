@@ -699,6 +699,18 @@
     vehicleCategoryScore, vehicleOverall, evaluatedVehicles, brandsPresent, brandCategoryScore, computeAll,
     onQuestionsChanged: null,   // pages set this to re-render when questions change
   };
+  /* Cab Assessment's per-category icons, by category id — used by cab.js and
+     previewed read-only in the admin editor. */
+  STD.CAB_ICONS = {
+    boarding: 'assets/icons/cab-entry.svg?v=1',
+    cross_cab_access: 'assets/icons/cross-cab-access.svg?v=1',
+    ergonomics: 'assets/icons/driver-ergonomics-1.svg?v=2',
+    ergonomics_driving: 'assets/icons/driver-ergonomics-2.svg?v=1',
+    fit_finish: 'assets/icons/living.svg?v=1',
+    'category-8-8': 'assets/icons/fit-and-finish.svg?v=1',
+    safety: 'assets/icons/safe-driving.svg?v=1',
+    cab_exit: 'assets/icons/cab-exit.svg?v=1',
+  };
   window.STD = STD;
 
   /* Haptic feedback — short vibration on any interactive button tap */

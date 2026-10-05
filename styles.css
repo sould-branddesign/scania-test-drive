@@ -1372,6 +1372,7 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   object-fit: contain;
   padding: 6px;
 }
+.icon-picker__preview--cab { background: #10305f; }   /* cab icons are white line art — need a dark ground */
 .icon-picker__empty {
   display: grid; place-items: center;
   font-size: 10px; color: var(--ink-faint); text-align: center;
