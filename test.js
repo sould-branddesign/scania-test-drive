@@ -77,6 +77,14 @@
     };
   }
 
+  /* walk-away guard: after 4 min without a touch (not on the start or thank-you
+     screen) ask "Are you still there?", then reset like RESTART after 30 s */
+  window.STD.startIdleGuard({
+    isActive: () => ui.view !== 'intro' && ui.view !== 'thanks',
+    onTimeout: () => { if (restartBtn) restartBtn.onclick(); },
+    promptMs: 4 * 60 * 1000, countdownMs: 30 * 1000,
+  });
+
   /* ---------- intro / cover ---------- */
   function viewIntro() {
     const c = h(`<div class="cover" role="button" tabindex="0">

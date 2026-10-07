@@ -39,6 +39,9 @@
  * 8. SÄKERHETSKOPIOR AV FRÅGORNA sparas automatiskt (dolda ark "Config-backup …")
  *    varje gång någon sparar i admin — inget att slå på. Backa: kör
  *    listConfigBackups, sedan restoreConfigBackup (se kommentaren vid dem).
+ * 9. KONTROLL FÖRE EVENTET: kör "preEventCheck" kvällen innan — du får en
+ *    ✓/⚠-lista i mejlet över konfiguration, rensad testdata, schemalagda
+ *    mejl och backup. Ändrar ingenting.
  *
  * ÅTKOMST: två separata hemligheter, ingen av dem hemlig i egentlig
  * mening (allt som skickas från en webbläsare går att läsa av), men båda
@@ -1263,6 +1266,116 @@ function setupDailySummaryTrigger() {
     .everyDays(1)
     .atHour(8)
     .create();
+}
+
+/* ---- Kontroll före eventet: "är allt klart?" ----
+
+   Kör preEventCheck från Apps Script-redigeraren kvällen före eventet (eller
+   när som helst). Den läser bara — ändrar ingenting — och mejlar en lista
+   med ✓ / ⚠ till ALERT_EMAIL, samt skriver den i körningsloggen. Kontrollerar:
+     • att frågekonfigurationen finns och har rätt antal kategorier och fordon
+     • att testdatan är rensad (huvudark och backup)
+     • att hälsomejlet och lägesmejlet är schemalagda
+     • att backup-arket går att nå och är i fas med huvudarket
+     • att säkerhetskopior av konfigurationen finns (info — de skapas första
+       gången någon sparar i admin)
+     • att första eventdagen ligger i SUMMARY_EVENT_DAYS (info)
+   Det som inte kan kontrolleras härifrån (plattorna: hemskärm, autolås,
+   Styrd åtkomst, wifi) står i personalguiden. */
+const EXPECTED_TD_CATEGORIES = 6;
+const EXPECTED_CAB_CATEGORIES = 8;
+const EXPECTED_CAB_VEHICLES = 4;
+
+function buildPreEventMail(items) {
+  const bad = items.filter((i) => i.ok === false).length;
+  const subject = 'Scania-appen · Före eventet · ' + (bad ? bad + (bad === 1 ? ' sak att fixa' : ' saker att fixa') : 'allt klart');
+  const mark = (i) => (i.ok === true ? '✓' : (i.ok === false ? '⚠' : 'ℹ'));
+  const text = [bad ? '⚠ ' + bad + (bad === 1 ? ' SAK ATT FIXA' : ' SAKER ATT FIXA') : '✓ ALLT KLART', ''];
+  items.forEach((i) => { text.push(mark(i) + ' ' + i.title); if (i.detail) text.push('    ' + i.detail); });
+
+  const ink = '#16202e', dim = '#5b6573', line = '#e3e6ea';
+  const accent = bad ? '#b3261e' : '#0e7c5a', accentBg = bad ? '#fdecea' : '#e8f5ef';
+  const color = (i) => (i.ok === true ? '#0e7c5a' : (i.ok === false ? '#b3261e' : '#2563a8'));
+  const rows = items.map((i) => '<tr><td width="28" valign="top" style="padding:9px 0;border-bottom:1px solid ' + line + ';font-size:16px;font-weight:700;color:' + color(i) + ';">' + mark(i) + '</td>' +
+    '<td style="padding:9px 0;border-bottom:1px solid ' + line + ';font-size:14px;"><div style="font-weight:600;color:' + ink + ';">' + summaryEsc(i.title) + '</div>' +
+    (i.detail ? '<div style="color:' + dim + ';font-size:13px;margin-top:2px;">' + summaryEsc(i.detail) + '</div>' : '') + '</td></tr>').join('');
+  const html = '<div style="background:#f4f5f7;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:' + ink + ';">' +
+    '<div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;padding:28px 28px 22px;">' +
+    '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:' + dim + ';font-weight:600;">Scania-appen · kontroll före eventet</div>' +
+    '<div style="background:' + accentBg + ';border-left:4px solid ' + accent + ';border-radius:6px;padding:14px 16px;margin:14px 0 8px;">' +
+    '<div style="font-size:20px;font-weight:700;color:' + accent + ';">' + (bad ? '⚠ ' + bad + (bad === 1 ? ' sak att fixa' : ' saker att fixa') : '✓ Allt klart') + '</div>' +
+    '<div style="font-size:14px;color:' + ink + ';margin-top:4px;">' + (bad ? 'Åtgärda det som är markerat med ⚠ och kör kontrollen igen.' : 'Alla kontroller är gröna.') + '</div></div>' +
+    '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;margin-top:10px;">' + rows + '</table>' +
+    '<div style="margin-top:20px;font-size:12px;color:' + dim + ';">Plattorna (hemskärm, autolås, Styrd åtkomst, wifi) kontrolleras inte härifrån — se personalguiden, avsnitt 1.</div>' +
+    '</div></div>';
+  return { subject: subject, body: text.join('\n'), html: html };
+}
+
+function preEventCheck() {
+  const items = [];
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const add = (ok, title, detail) => items.push({ ok: ok, title: title, detail: detail || '' });
+
+  // 1. frågekonfigurationen
+  let config = null;
+  try { config = readConfig().config; } catch (err) { /* hanteras nedan */ }
+  if (!config) {
+    add(false, 'Frågekonfigurationen kan inte läsas', 'Config-arket saknas eller är trasigt.');
+  } else {
+    const td = (config.questions || []).length, cab = (config.cabQuestions || []).length, veh = (config.cabVehicles || []).length;
+    add(td === EXPECTED_TD_CATEGORIES, 'Test Drive: ' + td + ' kategorier', td === EXPECTED_TD_CATEGORIES ? (config.questions || []).map((c) => c.title).join(' · ') : 'Förväntade ' + EXPECTED_TD_CATEGORIES + '.');
+    add(cab === EXPECTED_CAB_CATEGORIES, 'Cab Assessment: ' + cab + ' kategorier', cab === EXPECTED_CAB_CATEGORIES ? (config.cabQuestions || []).map((c) => c.title).join(' · ') : 'Förväntade ' + EXPECTED_CAB_CATEGORIES + '.');
+    add(veh === EXPECTED_CAB_VEHICLES, 'Cab Assessment: ' + veh + ' fordon', (config.cabVehicles || []).map((v) => v.name).join(' · ') + (veh === EXPECTED_CAB_VEHICLES ? '' : ' — förväntade ' + EXPECTED_CAB_VEHICLES + '.'));
+  }
+
+  // 2. testdatan rensad (huvudark + backup)
+  const targets = [['huvudarket', ss]];
+  let backupSs = null;
+  if (BACKUP_SHEET_ID) {
+    try { backupSs = SpreadsheetApp.openById(BACKUP_SHEET_ID); targets.push(['backup-arket', backupSs]); }
+    catch (err) { add(false, 'Backup-arket går inte att öppna', err.message); }
+  } else {
+    add(false, 'BACKUP_SHEET_ID är inte ifyllt', 'Ingen backup speglas.');
+  }
+  const leftover = [];
+  targets.forEach((t) => RESULT_SHEET_NAMES.forEach((name) => {
+    const sh = t[1].getSheetByName(name);
+    const n = sh ? Math.max(sh.getLastRow() - 1, 0) : 0;
+    if (n > 0) leftover.push(t[0] + ' · ' + name + ': ' + n);
+  }));
+  add(leftover.length === 0, leftover.length ? 'Testdata finns kvar' : 'Testdatan är rensad', leftover.length ? leftover.join(' · ') + ' — kör archiveAndClearTestData.' : 'Resultatflikarna är tomma i huvudarket och backupen.');
+
+  // 3. schemalagda mejl
+  const handlers = ScriptApp.getProjectTriggers().map((t) => t.getHandlerFunction());
+  add(handlers.indexOf('sendHealthCheckEmail') >= 0, 'Hälsokontrollen är schemalagd (06:00)', handlers.indexOf('sendHealthCheckEmail') >= 0 ? '' : 'Kör setupDailyHealthCheckTrigger.');
+  add(handlers.indexOf('sendDailySummaryEmail') >= 0, 'Lägesmejlet är schemalagt (08:00)', handlers.indexOf('sendDailySummaryEmail') >= 0 ? 'Skickas till ' + ALERT_EMAIL + '.' : 'Kör setupDailySummaryTrigger.');
+
+  // 4. backup i fas / sheets-struktur
+  try {
+    const integrity = runIntegrityCheck();
+    add(integrity.ok, integrity.ok ? 'Sheets och backup stämmer' : 'Sheets/backup har ' + integrity.issues.length + ' avvikelse(r)', integrity.ok ? 'Inga dubbletter, rubrikerna stämmer och backupen är ikapp.' : integrity.issues.join(' · '));
+  } catch (err) {
+    add(false, 'Kontrollen av Sheets kraschade', err.message);
+  }
+
+  // 5. säkerhetskopior av konfigurationen
+  const nBackups = listConfigBackupSheets(ss).length;
+  add(nBackups > 0 ? true : null, nBackups ? nBackups + ' säkerhetskopior av frågorna finns' : 'Inga säkerhetskopior av frågorna än', nBackups ? 'Backa med listConfigBackups och restoreConfigBackup.' : 'De skapas första gången någon sparar i admin.');
+
+  // 6. eventdagar
+  const days = SUMMARY_EVENT_DAYS.slice().sort();
+  if (days.length) {
+    const today = Utilities.formatDate(new Date(), SUMMARY_TZ, 'yyyy-MM-dd');
+    const left = Math.round((new Date(days[0] + 'T12:00:00Z') - new Date(today + 'T12:00:00Z')) / 86400000);
+    add(null, 'Eventdagar i lägesmejlet: ' + days.length + ' (' + days[0] + ' till ' + days[days.length - 1] + ')', left > 0 ? 'Första dagen är om ' + left + (left === 1 ? ' dag.' : ' dagar.') : 'Första dagen har redan passerat.');
+  } else {
+    add(false, 'Inga eventdagar i SUMMARY_EVENT_DAYS', 'Du blir inte varnad om en hel dag blir tyst.');
+  }
+
+  const mail = buildPreEventMail(items);
+  items.forEach((i) => Logger.log((i.ok === true ? '✓ ' : (i.ok === false ? '⚠ ' : 'ℹ ')) + i.title + (i.detail ? ' — ' + i.detail : '')));
+  MailApp.sendEmail(ALERT_EMAIL, mail.subject, mail.body, { htmlBody: mail.html });
+  return mail.subject;
 }
 
 /* ---- doGet: returnera all rådata (och den delade konfigurationen) till admin-sidan/enheterna ---- */

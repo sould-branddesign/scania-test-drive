@@ -490,6 +490,15 @@
     };
   }
 
+  /* walk-away guard: the Cab Assessment is done with the tablet in the cab and
+     away from it for a while, so the prompt waits 15 min; then 60 s to answer
+     before it resets like RESTART (all vehicles' answers are discarded). */
+  window.STD.startIdleGuard({
+    isActive: () => ui.view !== 'intro' && ui.view !== 'thanks',
+    onTimeout: () => { if (restartBtn) restartBtn.onclick(); },
+    promptMs: 15 * 60 * 1000, countdownMs: 60 * 1000,
+  });
+
   window.STD.load(true);
   render();
 })();
