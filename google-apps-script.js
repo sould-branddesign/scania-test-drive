@@ -454,6 +454,29 @@ function restoreConfigBackup() {
   Logger.log('Återställde konfigurationen från "' + target.getName() + '". ' + result.getContent());
 }
 
+/* ---- Byt namn på ett Cab Assessment-fordon (engångskörning) ----
+   Fordonens namn ligger i den delade konfigurationen (Config-arket), inte i
+   appens kod, så ett nytt namn måste ändras där för att nå alla plattor.
+   Fordonets id ändras ALDRIG — svaren är sparade under id:t, så gamla svar
+   hamnar fortfarande under rätt fordon. Ändra de två raderna nedan och kör
+   renameCabVehicle från redigeraren. Funktionen sparar via saveConfig, så en
+   säkerhetskopia av läget före skapas automatiskt (kan backas med
+   restoreConfigBackup) och plattorna får det nya namnet inom ungefär en minut. */
+const RENAME_CAB_VEHICLE_ID = 'mercedes-actros';
+const RENAME_CAB_VEHICLE_TO = 'Mercedes Actros ProCabin';
+
+function renameCabVehicle() {
+  const config = readConfig().config;
+  if (!config || !Array.isArray(config.cabVehicles)) { Logger.log('Hittar ingen konfiguration med fordon — avbryter.'); return; }
+  const v = config.cabVehicles.filter((x) => x.id === RENAME_CAB_VEHICLE_ID)[0];
+  if (!v) { Logger.log('Hittar inget Cab-fordon med id "' + RENAME_CAB_VEHICLE_ID + '".'); return; }
+  if (v.name === RENAME_CAB_VEHICLE_TO) { Logger.log('Fordonet heter redan "' + v.name + '" — inget att göra.'); return; }
+  const before = v.name;
+  v.name = RENAME_CAB_VEHICLE_TO;
+  saveConfig(JSON.stringify(config));
+  Logger.log('Bytte namn: "' + before + '" → "' + v.name + '" (id ' + v.id + ').');
+}
+
 /* Läsbar förteckning kod → fråga, byggd om varje gång configen sparas.
    Test Drive/Cab Assessment-flikarnas kolumnrubriker är numera bara
    frågans permanenta kod ("1", "1a" …, se assignCodes i core.js) för att

@@ -94,9 +94,11 @@
     },
   ];
 
+  /* [name, id?] — the id is permanent (answers are stored under it), so a
+     renamed vehicle keeps its original id. */
   const DEFAULT_CAB_VEHICLES = [
-    'Scania CR20H', 'Volvo FH Aero', 'MAN TGX', 'Mercedes Actros',
-  ].map((name) => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
+    ['Scania CR20H'], ['Volvo FH Aero'], ['MAN TGX'], ['Mercedes Actros ProCabin', 'mercedes-actros'],
+  ].map(([name, id]) => ({ id: id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
 
   const DEFAULT_CAB_QUESTIONS = [
     { id: 'boarding', title: 'Cab Entry', instruction: "Enter the cab from the driver's side, with the second person carrying the tablet. Climb in and settle into position — tablet holder on the bed, first person in the passenger seat.", metrics: [
