@@ -970,8 +970,9 @@ function computeDailySummary(entries, day, knownIds, tz, fmt) {
   mine.forEach((e) => {
     const form = e.formId === 'cab' ? 'Cab Assessment' : 'Test Drive';
     perForm[form] = (perForm[form] || 0) + 1;
-    const vkey = form + ' · ' + (e.vehicleName || '?');
-    perVehicle[vkey] = (perVehicle[vkey] || 0) + 1;
+    perVehicle[form] = perVehicle[form] || {};
+    const vname = e.vehicleName || '?';
+    perVehicle[form][vname] = (perVehicle[form][vname] || 0) + 1;
     if (!e.country) noCountry++;
     if (!e.lang) noLang++;
     const keys = Object.keys(e.answers || {});
@@ -1024,34 +1025,87 @@ function readAllRawEntries(ss) {
   return entries;
 }
 
+function summaryDayLabel(day) {
+  const wd = ['söndag','måndag','tisdag','onsdag','torsdag','fredag','lördag'];
+  const mo = ['januari','februari','mars','april','maj','juni','juli','augusti','september','oktober','november','december'];
+  const d = new Date(day + 'T12:00:00Z');
+  return wd[d.getUTCDay()] + ' ' + d.getUTCDate() + ' ' + mo[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+}
+
+function summaryEsc(t) {
+  return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/* Bygger både en enkel textversion och ett HTML-mejl: statusruta överst,
+   sedan siffror, fordon och kontroller i små tabeller. */
 function buildSummaryMail(s, extraWarnings, configUpdatedAt, isTest) {
-  const warnings = s.warnings.concat(extraWarnings);
+  const contentWarnings = s.warnings;
+  const warnings = contentWarnings.concat(extraWarnings);
   const ok = warnings.length === 0;
   const tag = isTest ? '[TEST] ' : '';
-  const subject = tag + 'Scania-appen — ' + (ok ? 'allt fungerar' : 'kolla (' + warnings.length + (warnings.length === 1 ? ' varning' : ' varningar') + ')') +
-    ' · ' + s.total + (s.total === 1 ? ' inskick ' : ' inskick ') + s.day;
+  const dayLabel = summaryDayLabel(s.day);
+  const subject = tag + 'Scania-appen · ' + (ok ? 'Allt fungerar' : 'Kolla: ' + warnings.length + (warnings.length === 1 ? ' varning' : ' varningar')) +
+    ' · ' + s.total + ' inskick (' + s.day + ')';
 
-  const lines = [];
-  lines.push(ok ? 'ALLT FUNGERAR som det ska.' : 'KOLLA: ' + warnings.length + (warnings.length === 1 ? ' sak' : ' saker') + ' som inte stämmer.');
-  lines.push('');
-  if (!ok) { warnings.forEach((w) => lines.push('⚠ ' + w)); lines.push(''); }
-  lines.push('Dag: ' + s.day);
-  lines.push('Inskick totalt: ' + s.total);
-  Object.keys(s.perForm).forEach((f) => lines.push('  ' + f + ': ' + s.perForm[f]));
-  if (s.perForm['Cab Assessment']) lines.push('  (Cab Assessment räknas per fordon — ett besök med fyra fordon blir fyra inskick.)');
+  const forms = Object.keys(s.perForm);
+  const rows = [];                                  // [label, value]
+  forms.forEach((f) => rows.push([f, String(s.perForm[f]) + (f === 'Cab Assessment' ? ' (räknas per fordon)' : '')]));
   if (s.total) {
-    lines.push('Första inskick: ' + s.first + ' · Sista inskick: ' + s.last);
-    if (s.longestGapMin) lines.push('Längsta uppehåll mellan inskick: ' + s.longestGapMin + ' min (' + s.longestGapSpan + ')');
-    lines.push('');
-    lines.push('Per fordon:');
-    Object.keys(s.perVehicle).sort().forEach((k) => lines.push('  ' + k + ': ' + s.perVehicle[k]));
+    rows.push(['Första inskick', s.first]);
+    rows.push(['Sista inskick', s.last]);
+    if (s.longestGapMin) rows.push(['Längsta uppehåll', s.longestGapMin + ' min (' + s.longestGapSpan + ')']);
   }
-  lines.push('');
-  lines.push('Kontroller:');
-  lines.push('  ' + (s.warnings.length ? '⚠' : '✓') + ' Svarens innehåll (marknad, språk, värden, aktuella frågor)');
-  lines.push('  ' + (extraWarnings.length ? '⚠' : '✓') + ' Sheets och backup (dubbletter, kolumner, saknade svar)');
-  lines.push('Frågekonfigurationen senast sparad: ' + (configUpdatedAt || 'okänt'));
-  return { subject: subject, body: lines.join('\n') };
+  const checks = [
+    [contentWarnings.length === 0, 'Svarens innehåll', 'Marknad, språk och värden finns, och frågorna är de aktuella.'],
+    [extraWarnings.length === 0, 'Sheets och backup', 'Inga dubbletter, rubriker stämmer, backupen är ikapp.'],
+  ];
+
+  /* ---------- text ---------- */
+  const t = [];
+  t.push(ok ? '✓ ALLT FUNGERAR' : '⚠ KOLLA — ' + warnings.length + (warnings.length === 1 ? ' sak' : ' saker'));
+  t.push(dayLabel);
+  if (!ok) { t.push(''); warnings.forEach((w) => t.push('  ⚠ ' + w)); }
+  t.push(''); t.push('INSKICK');
+  t.push('  Totalt: ' + s.total);
+  rows.forEach((r) => t.push('  ' + r[0] + ': ' + r[1]));
+  forms.forEach((f) => {
+    t.push(''); t.push(f.toUpperCase() + ' PER FORDON');
+    Object.keys(s.perVehicle[f] || {}).sort().forEach((v) => t.push('  ' + v + ': ' + s.perVehicle[f][v]));
+  });
+  t.push(''); t.push('KONTROLLER');
+  checks.forEach((c) => t.push('  ' + (c[0] ? '✓' : '⚠') + ' ' + c[1]));
+  t.push(''); t.push('Frågorna senast sparade: ' + (configUpdatedAt || 'okänt'));
+
+  /* ---------- html ---------- */
+  const ink = '#16202e', dim = '#5b6573', line = '#e3e6ea';
+  const accent = ok ? '#0e7c5a' : '#b3261e';
+  const accentBg = ok ? '#e8f5ef' : '#fdecea';
+  const td = 'padding:7px 0;border-bottom:1px solid ' + line + ';font-size:14px;';
+  const h = (txt) => '<div style="margin:26px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:' + dim + ';font-weight:600;">' + txt + '</div>';
+  const kv = (list) => '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">' +
+    list.map((r) => '<tr><td style="' + td + 'color:' + dim + ';">' + summaryEsc(r[0]) + '</td><td align="right" style="' + td + 'color:' + ink + ';font-weight:600;">' + summaryEsc(r[1]) + '</td></tr>').join('') + '</table>';
+
+  let html = '<div style="background:#f4f5f7;padding:24px 12px;font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:' + ink + ';">' +
+    '<div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:10px;padding:28px 28px 22px;">' +
+    '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:' + dim + ';font-weight:600;">' + (isTest ? 'TEST · ' : '') + 'Scania-appen · lägesrapport</div>' +
+    '<div style="font-size:15px;color:' + dim + ';margin:2px 0 18px;">' + summaryEsc(dayLabel) + '</div>' +
+    '<div style="background:' + accentBg + ';border-left:4px solid ' + accent + ';border-radius:6px;padding:14px 16px;">' +
+    '<div style="font-size:20px;font-weight:700;color:' + accent + ';">' + (ok ? '✓ Allt fungerar' : '⚠ Kolla ' + warnings.length + (warnings.length === 1 ? ' sak' : ' saker')) + '</div>' +
+    (ok ? '<div style="font-size:14px;color:' + ink + ';margin-top:4px;">' + s.total + ' inskick kom in och alla kontroller är gröna.</div>'
+        : '<ul style="margin:10px 0 0;padding-left:18px;font-size:14px;line-height:1.5;color:' + ink + ';">' + warnings.map((w) => '<li style="margin-bottom:4px;">' + summaryEsc(w) + '</li>').join('') + '</ul>') +
+    '</div>' +
+    h('Inskick') + kv([['Totalt', String(s.total)]].concat(rows));
+  forms.forEach((f) => {
+    const vs = s.perVehicle[f] || {};
+    html += h(f + ' per fordon') + kv(Object.keys(vs).sort().map((v) => [v, String(vs[v])]));
+  });
+  html += h('Kontroller') + '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">' +
+    checks.map((c) => '<tr><td width="28" valign="top" style="' + td + 'font-size:16px;color:' + (c[0] ? '#0e7c5a' : '#b3261e') + ';font-weight:700;">' + (c[0] ? '✓' : '⚠') + '</td>' +
+      '<td style="' + td + '"><div style="font-weight:600;color:' + ink + ';">' + summaryEsc(c[1]) + '</div><div style="color:' + dim + ';font-size:13px;">' + summaryEsc(c[0] ? c[2] : 'Se varningarna överst.') + '</div></td></tr>').join('') + '</table>' +
+    '<div style="margin-top:22px;font-size:12px;color:' + dim + ';">Frågorna senast sparade: ' + summaryEsc(configUpdatedAt || 'okänt') + '<br>Skickas automatiskt varje morgon kl 08:00.</div>' +
+    '</div></div>';
+
+  return { subject: subject, body: t.join('\n'), html: html };
 }
 
 function sendDailySummaryEmail(dayOverride, isTest) {
@@ -1079,7 +1133,7 @@ function sendDailySummaryEmail(dayOverride, isTest) {
     const cfgAt = readConfig().updatedAt;
     const cfgText = cfgAt ? Utilities.formatDate(new Date(cfgAt), SUMMARY_TZ, 'yyyy-MM-dd HH:mm') : null;
     const mail = buildSummaryMail(s, extra, cfgText, !!isTest);
-    MailApp.sendEmail(ALERT_EMAIL, mail.subject, mail.body);
+    MailApp.sendEmail(ALERT_EMAIL, mail.subject, mail.body, { htmlBody: mail.html });
   } catch (err) {
     MailApp.sendEmail(ALERT_EMAIL, 'Scania-appen — lägesmejlet kunde inte skapas',
       'Det dagliga lägesmejlet kraschade med felet:\n\n' + err.message +
