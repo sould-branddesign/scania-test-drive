@@ -480,6 +480,49 @@ function renameCabVehicle() {
   Logger.log('Bytte namn: "' + before + '" → "' + v.name + '" (id ' + v.id + ').');
 }
 
+/* ---- Sätt Test Drives fordonslista (engångskörning) ----
+   Fordonen (namn, ordning och löpnummer) ligger i den delade konfigurationen,
+   så en ny lista måste in där för att nå alla plattor. Listan nedan är i den
+   ordning som eventets fordonslista har; numret läggs framför namnet
+   ("1. Scania 500R A6X2/4NB") och visas överallt — fordonsvalet, taggen under
+   utvärderingen, resultaten och Vehicle-kolumnen i Sheets. Id:t är namnet utan
+   nummer, så ett fordon som behåller sitt namn behåller sitt id. Ändra listan
+   här och kör setTestDriveVehicles; en säkerhetskopia av läget före skapas
+   automatiskt (restoreConfigBackup backar). Plattorna får listan inom ungefär
+   en minut. Cab Assessments fordon ändras med renameCabVehicle. */
+const TEST_DRIVE_VEHICLES = [
+  'Scania 500R A6X2/4NB', 'Volvo FH Aero 510 A4x2',
+  'Scania 40S A4X2NB', 'Mercedes eActros 600 LS A4x2',
+  'Scania 460R A4X2NA', 'MAN TGX 18.480 BLS A4x2',
+  'Scania 560S A4X2NB', 'DAF XG+ 480 FT A4x2',
+  'Scania 33R A4X2NB', 'Volvo FH Electric A4x2',
+  'Scania 500R A4x2LB', 'Mercedes Actros 1851 LS A4x2',
+];
+
+function vehicleBrandOf(name) {
+  const n = String(name).toLowerCase().replace(/^\d+\.\s*/, '');
+  if (n.indexOf('scania') === 0) return 'scania';
+  if (n.indexOf('volvo') === 0) return 'volvo';
+  if (n.indexOf('daf') === 0) return 'daf';
+  if (n.indexOf('mercedes') === 0) return 'mercedes';
+  if (n.indexOf('man') === 0) return 'man';
+  return 'scania';
+}
+
+function setTestDriveVehicles() {
+  const config = readConfig().config;
+  if (!config) { Logger.log('Hittar ingen konfiguration — avbryter.'); return; }
+  const list = TEST_DRIVE_VEHICLES.map((name, i) => ({
+    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    name: (i + 1) + '. ' + name,
+    brand: vehicleBrandOf(name),
+  }));
+  if (JSON.stringify(config.vehicles) === JSON.stringify(list)) { Logger.log('Fordonslistan är redan som den ska — inget att göra.'); return; }
+  config.vehicles = list;
+  saveConfig(JSON.stringify(config));
+  Logger.log('Satte Test Drives fordonslista (' + list.length + ' fordon): ' + list.map((v) => v.name).join(' | '));
+}
+
 /* Läsbar förteckning kod → fråga, byggd om varje gång configen sparas.
    Test Drive/Cab Assessment-flikarnas kolumnrubriker är numera bara
    frågans permanenta kod ("1", "1a" …, se assignCodes i core.js) för att

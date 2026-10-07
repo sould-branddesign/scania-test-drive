@@ -24,7 +24,7 @@
     man:      { name: 'MAN',      a: 'var(--man-a)',    b: 'var(--man-b)',    solid: '#E75F30', solidB: '#363CA5' },
   };
   const brandOf = (name) => {
-    const n = name.toLowerCase();
+    const n = name.toLowerCase().replace(/^\d+\.\s*/, '');
     if (n.startsWith('scania')) return 'scania';
     if (n.startsWith('volvo')) return 'volvo';
     if (n.startsWith('daf')) return 'daf';
@@ -43,14 +43,17 @@
      entries end up with the identical id (derived from the name below),
      so answers submitted from either tile land under the same vehicle
      in the results, exactly as if it were one button. */
+  /* Test Drive vehicles, in the order (and with the numbers) of the event's
+     vehicle list. The number is part of the displayed name ("1. Scania …"),
+     the id is the plain name so it stays stable if the numbering changes. */
   const DEFAULT_VEHICLES = [
-    'Scania 40S A4X2NB', 'Mercedes eActros 600 LS 4x2',
-    'Scania 500R A6X2/4NB', 'Volvo FH Aero 510 4x2',
-    'Scania 460R A4X2NA', 'MAN TGX 18.480 BLS Euro 6e',
-    'Scania 560S A4X2NB', 'DAF XG+ 480 FT 4x2 E6e',
-    'Scania 33R A4X2NB', 'Volvo FH electric 4x2',
-    'Scania 500R A4x2LB', 'Mercedes Actros 1851 LS 4x2 E6',
-  ].map((name) => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
+    'Scania 500R A6X2/4NB', 'Volvo FH Aero 510 A4x2',
+    'Scania 40S A4X2NB', 'Mercedes eActros 600 LS A4x2',
+    'Scania 460R A4X2NA', 'MAN TGX 18.480 BLS A4x2',
+    'Scania 560S A4X2NB', 'DAF XG+ 480 FT A4x2',
+    'Scania 33R A4X2NB', 'Volvo FH Electric A4x2',
+    'Scania 500R A4x2LB', 'Mercedes Actros 1851 LS A4x2',
+  ].map((name, i) => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: (i + 1) + '. ' + name, brand: brandOf(name) }));
 
   /* ---------- default questions (the 5 evaluation steps) ---------- */
   const DEFAULT_QUESTIONS = [
