@@ -31,6 +31,11 @@
  *    Apps Script-redigeraren och klicka Kör. Google ber om ett nytt
  *    behörighetsgodkännande (för att få skicka e-post) — godkänn det.
  *    Behöver bara göras en gång, inte om igen vid varje ny distribution.
+ * 7. LÄGESMEJL varje morgon kl 08:00 om gårdagen (inskick, fordon, tider
+ *    och om allt fungerar): välj "previewDailySummary" och klicka Kör för
+ *    ett testmejl, och därefter "setupDailySummaryTrigger" en gång för att
+ *    slå på det. Eventdagarna (2–27 november 2026, vardagar) står redan i
+ *    SUMMARY_EVENT_DAYS längre ner, så en helt tyst eventdag ger en varning.
  *
  * ÅTKOMST: två separata hemligheter, ingen av dem hemlig i egentlig
  * mening (allt som skickas från en webbläsare går att läsa av), men båda
@@ -917,6 +922,193 @@ function setupDailyHealthCheckTrigger() {
     .timeBased()
     .everyDays(1)
     .atHour(6)
+    .create();
+}
+
+/* ---- Dagligt lägesmejl: "fungerar allt som det ska?" ----
+
+   Skickas varje morgon (se setupDailySummaryTrigger nedan) och handlar om
+   GÅRDAGEN. Fokus är att allt fungerar och kommer in — inte på betygen:
+     • hur många inskick som kom in, per formulär och per fordon
+     • när det första och sista kom in, och det längsta uppehållet emellan
+       (en platta som tystnat mitt på dagen syns här)
+     • tecken på att något är fel: svar utan land eller språk, svar utan
+       några värden alls, svar på frågor som inte längre finns i
+       konfigurationen (en platta som kör en gammal version)
+     • samma kontroll som hälsomejlet (dubbletter, backup, kolumner)
+     • att den dagliga hälsokontrollen fortfarande är schemalagd
+   Mejlet säger tydligt "allt fungerar" eller listar varningarna överst.
+
+   Skickas bara om gårdagen hade minst ett inskick — ELLER om gårdagen står
+   i SUMMARY_EVENT_DAYS nedan (då skickas det även om inget kom in, med en
+   varning om att det var tyst en eventdag). Eventdagarna står som
+   'ÅÅÅÅ-MM-DD' och är redan ifyllda (2–27 november, vardagar) — du blir varnad
+   om en hel eventdag blir tyst.
+
+   Testa utan att vänta: kör previewDailySummary i Apps Script-redigeraren —
+   det skickar ett mejl för den senaste dagen som har inskick, med [TEST]
+   i ämnet. Ändrar ingenting i Sheets. */
+const SUMMARY_EVENT_DAYS = [   // eventet 2–27 november 2026, vardagar (ta bort en dag om ingen var på plats)
+  '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06',
+  '2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13',
+  '2026-11-16', '2026-11-17', '2026-11-18', '2026-11-19', '2026-11-20',
+  '2026-11-23', '2026-11-24', '2026-11-25', '2026-11-26', '2026-11-27',
+];
+const SUMMARY_TZ = 'Europe/Stockholm';
+
+/* Ren beräkning (rör inget i Sheets/Mejl) så att den går att testa med
+   påhittade data. entries = tolkade Raw-rader, knownIds = {form: {id:true}}. */
+function computeDailySummary(entries, day, knownIds, tz, fmt) {
+  const dayOf = (e) => fmt(new Date(e.timestamp), tz, 'yyyy-MM-dd');
+  const hhmm = (e) => fmt(new Date(e.timestamp), tz, 'HH:mm');
+  const mine = entries.filter((e) => e && e.timestamp && dayOf(e) === day)
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  const perForm = {}, perVehicle = {};
+  const warn = [];
+  let noCountry = 0, noLang = 0, noAnswers = 0, unknownIds = 0;
+  mine.forEach((e) => {
+    const form = e.formId === 'cab' ? 'Cab Assessment' : 'Test Drive';
+    perForm[form] = (perForm[form] || 0) + 1;
+    const vkey = form + ' · ' + (e.vehicleName || '?');
+    perVehicle[vkey] = (perVehicle[vkey] || 0) + 1;
+    if (!e.country) noCountry++;
+    if (!e.lang) noLang++;
+    const keys = Object.keys(e.answers || {});
+    if (!keys.length) noAnswers++;
+    const known = knownIds[e.formId === 'cab' ? 'cab' : 'testdrive'] || {};
+    if (keys.some((k) => known && Object.keys(known).length && !known[k])) unknownIds++;
+  });
+
+  let gap = null;
+  const times = mine.map((e) => new Date(e.timestamp).getTime());
+  for (let i = 1; i < times.length; i++) {
+    const g = times[i] - times[i - 1];
+    if (g > 5000 && (!gap || g > gap.ms)) gap = { ms: g, from: hhmm(mine[i - 1]), to: hhmm(mine[i]) };
+  }
+
+  if (noCountry) warn.push(noCountry + ' svar saknar marknad (land).');
+  if (noLang) warn.push(noLang + ' svar saknar språk.');
+  if (noAnswers) warn.push(noAnswers + ' svar innehåller inga värden alls.');
+  if (unknownIds) warn.push(unknownIds + ' svar innehåller frågor som inte finns i den nuvarande konfigurationen — en platta kan köra en gammal version av appen (stäng och öppna appen på plattorna).');
+
+  return {
+    day, total: mine.length, perForm, perVehicle,
+    first: mine.length ? hhmm(mine[0]) : null,
+    last: mine.length ? hhmm(mine[mine.length - 1]) : null,
+    longestGapMin: gap ? Math.round(gap.ms / 60000) : 0,
+    longestGapSpan: gap ? gap.from + '–' + gap.to : null,
+    warnings: warn,
+  };
+}
+
+function summaryKnownIds() {
+  const config = (readConfig().config) || {};
+  const collect = (cats) => {
+    const o = {};
+    (cats || []).forEach((c) => (c.metrics || []).forEach((m) => { o[m.id] = true; }));
+    return o;
+  };
+  return { testdrive: collect(config.questions), cab: collect(config.cabQuestions) };
+}
+
+function readAllRawEntries(ss) {
+  const entries = [];
+  ['Raw — Test Drive', 'Raw — Cab Assessment'].forEach((name) => {
+    const sheet = ss.getSheetByName(name);
+    if (!sheet || sheet.getLastRow() <= 1) return;
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues().forEach((r) => {
+      try { if (r[0]) entries.push(JSON.parse(r[0])); } catch (err) { /* hoppa över oläsbar rad */ }
+    });
+  });
+  return entries;
+}
+
+function buildSummaryMail(s, extraWarnings, configUpdatedAt, isTest) {
+  const warnings = s.warnings.concat(extraWarnings);
+  const ok = warnings.length === 0;
+  const tag = isTest ? '[TEST] ' : '';
+  const subject = tag + 'Scania-appen — ' + (ok ? 'allt fungerar' : 'kolla (' + warnings.length + (warnings.length === 1 ? ' varning' : ' varningar') + ')') +
+    ' · ' + s.total + (s.total === 1 ? ' inskick ' : ' inskick ') + s.day;
+
+  const lines = [];
+  lines.push(ok ? 'ALLT FUNGERAR som det ska.' : 'KOLLA: ' + warnings.length + (warnings.length === 1 ? ' sak' : ' saker') + ' som inte stämmer.');
+  lines.push('');
+  if (!ok) { warnings.forEach((w) => lines.push('⚠ ' + w)); lines.push(''); }
+  lines.push('Dag: ' + s.day);
+  lines.push('Inskick totalt: ' + s.total);
+  Object.keys(s.perForm).forEach((f) => lines.push('  ' + f + ': ' + s.perForm[f]));
+  if (s.perForm['Cab Assessment']) lines.push('  (Cab Assessment räknas per fordon — ett besök med fyra fordon blir fyra inskick.)');
+  if (s.total) {
+    lines.push('Första inskick: ' + s.first + ' · Sista inskick: ' + s.last);
+    if (s.longestGapMin) lines.push('Längsta uppehåll mellan inskick: ' + s.longestGapMin + ' min (' + s.longestGapSpan + ')');
+    lines.push('');
+    lines.push('Per fordon:');
+    Object.keys(s.perVehicle).sort().forEach((k) => lines.push('  ' + k + ': ' + s.perVehicle[k]));
+  }
+  lines.push('');
+  lines.push('Kontroller:');
+  lines.push('  ' + (s.warnings.length ? '⚠' : '✓') + ' Svarens innehåll (marknad, språk, värden, aktuella frågor)');
+  lines.push('  ' + (extraWarnings.length ? '⚠' : '✓') + ' Sheets och backup (dubbletter, kolumner, saknade svar)');
+  lines.push('Frågekonfigurationen senast sparad: ' + (configUpdatedAt || 'okänt'));
+  return { subject: subject, body: lines.join('\n') };
+}
+
+function sendDailySummaryEmail(dayOverride, isTest) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let day;
+    if (typeof dayOverride === 'string') day = dayOverride;
+    else {
+      const y = new Date(); y.setDate(y.getDate() - 1);
+      day = Utilities.formatDate(y, SUMMARY_TZ, 'yyyy-MM-dd');
+    }
+    const entries = readAllRawEntries(ss);
+    const s = computeDailySummary(entries, day, summaryKnownIds(), SUMMARY_TZ, Utilities.formatDate);
+
+    const isEventDay = SUMMARY_EVENT_DAYS.indexOf(day) >= 0;
+    if (!isTest && s.total === 0 && !isEventDay) return;       // vanlig dag utan inskick: inget mejl
+
+    const extra = [];
+    if (s.total === 0) extra.push('Inga inskick alls kom in ' + day + ', fast det var en eventdag — kolla plattorna och uppkopplingen.');
+    const integrity = runIntegrityCheck();
+    integrity.issues.forEach((i) => extra.push(i));
+    const hasHealthTrigger = ScriptApp.getProjectTriggers().some((t) => t.getHandlerFunction() === 'sendHealthCheckEmail');
+    if (!hasHealthTrigger) extra.push('Den dagliga hälsokontrollen är inte schemalagd längre — kör setupDailyHealthCheckTrigger.');
+
+    const cfgAt = readConfig().updatedAt;
+    const cfgText = cfgAt ? Utilities.formatDate(new Date(cfgAt), SUMMARY_TZ, 'yyyy-MM-dd HH:mm') : null;
+    const mail = buildSummaryMail(s, extra, cfgText, !!isTest);
+    MailApp.sendEmail(ALERT_EMAIL, mail.subject, mail.body);
+  } catch (err) {
+    MailApp.sendEmail(ALERT_EMAIL, 'Scania-appen — lägesmejlet kunde inte skapas',
+      'Det dagliga lägesmejlet kraschade med felet:\n\n' + err.message +
+      '\n\nKolla att Sheets-strukturen (Raw-flikarna, Config-arket) ser ut som den ska.');
+  }
+}
+
+/* Testmejl för den SENASTE dagen som har inskick (inte nödvändigtvis
+   igår). Skickar alltid, ändrar ingenting. Kör den från redigeraren. */
+function previewDailySummary() {
+  const entries = readAllRawEntries(SpreadsheetApp.getActiveSpreadsheet());
+  let latest = null;
+  entries.forEach((e) => { if (e && e.timestamp && (!latest || e.timestamp > latest)) latest = e.timestamp; });
+  const day = latest ? Utilities.formatDate(new Date(latest), SUMMARY_TZ, 'yyyy-MM-dd')
+                     : Utilities.formatDate(new Date(), SUMMARY_TZ, 'yyyy-MM-dd');
+  sendDailySummaryEmail(day, true);
+}
+
+/* Engångsinstallation, precis som setupDailyHealthCheckTrigger: kör den
+   en gång för att få mejlet varje morgon kl 08:00. Säker att köra om
+   (rensar en ev. tidigare trigger för samma funktion först). */
+function setupDailySummaryTrigger() {
+  ScriptApp.getProjectTriggers().forEach((t) => {
+    if (t.getHandlerFunction() === 'sendDailySummaryEmail') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('sendDailySummaryEmail')
+    .timeBased()
+    .everyDays(1)
+    .atHour(8)
     .create();
 }
 
