@@ -36,6 +36,9 @@
  *    ett testmejl, och därefter "setupDailySummaryTrigger" en gång för att
  *    slå på det. Eventdagarna (2–27 november 2026, vardagar) står redan i
  *    SUMMARY_EVENT_DAYS längre ner, så en helt tyst eventdag ger en varning.
+ * 8. SÄKERHETSKOPIOR AV FRÅGORNA sparas automatiskt (dolda ark "Config-backup …")
+ *    varje gång någon sparar i admin — inget att slå på. Backa: kör
+ *    listConfigBackups, sedan restoreConfigBackup (se kommentaren vid dem).
  *
  * ÅTKOMST: två separata hemligheter, ingen av dem hemlig i egentlig
  * mening (allt som skickas från en webbläsare går att läsa av), men båda
@@ -352,6 +355,11 @@ function saveConfig(json) {
     const sheet = ss.getSheetByName(CONFIG_SHEET_NAME) || ss.insertSheet(CONFIG_SHEET_NAME);
     const updatedAt = new Date().toISOString();
 
+    /* Spara en kopia av den GAMLA konfigurationen innan den skrivs över, så
+       att en felaktig sparning går att backa. Får aldrig stoppa själva
+       sparningen — därför eget try/catch. */
+    try { snapshotConfig(ss, sheet); } catch (err) { Logger.log('snapshotConfig failed: ' + err.message); }
+
     const chunks = [];
     for (let i = 0; i < json.length; i += CONFIG_CHUNK_SIZE) chunks.push(json.slice(i, i + CONFIG_CHUNK_SIZE));
     if (!chunks.length) chunks.push('');
@@ -376,6 +384,74 @@ function saveConfig(json) {
       .createTextOutput(JSON.stringify({ ok: false, error: err.message }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+/* ---- Säkerhetskopior av frågekonfigurationen ----
+   Varje gång configen sparas från admin sparas först en kopia av den
+   FÖRRA versionen som ett dolt ark "Config-backup <datum> <tid>". Den
+   senaste CONFIG_BACKUPS_KEEP kopiorna behålls, äldre tas bort. En kopia
+   som är identisk med den senaste hoppas över. Så går det att backa om
+   någon sparar fel frågor — även inom samma dag.
+
+   Backa: kör listConfigBackups (visar namnen i körningsloggen), och därefter
+   restoreConfigBackup. Den återställer den NYASTE kopian — alltså läget före
+   den senaste sparningen — eller den du skriver in i RESTORE_CONFIG_BACKUP_NAME
+   (exakt arknamn, t.ex. 'Config-backup 2026-11-03 101500'). Själva
+   återställningen sparar också en kopia av läget just före, så den går att
+   ångra. Plattorna plockar upp den återställda versionen inom ungefär en
+   minut. De dolda arken syns under Visa → Dolda ark. */
+const CONFIG_BACKUP_PREFIX = 'Config-backup ';
+const CONFIG_BACKUPS_KEEP = 20;
+const RESTORE_CONFIG_BACKUP_NAME = '';
+
+function readConfigJsonFromSheet(sheet) {
+  const chunkCount = Number(sheet.getRange(2, 2).getValue()) || 0;
+  if (chunkCount <= 0) return '';
+  return sheet.getRange(3, 2, chunkCount, 1).getValues().map((r) => String(r[0])).join('');
+}
+
+function listConfigBackupSheets(ss) {
+  return ss.getSheets().filter((s) => s.getName().indexOf(CONFIG_BACKUP_PREFIX) === 0)
+    .sort((a, b) => (a.getName() < b.getName() ? -1 : 1));          // äldst först
+}
+
+function snapshotConfig(ss, configSheet) {
+  if (!configSheet || configSheet.getLastRow() < 3) return;         // inget att spara än
+  const json = readConfigJsonFromSheet(configSheet);
+  if (!json) return;
+  const backups = listConfigBackupSheets(ss);
+  if (backups.length && readConfigJsonFromSheet(backups[backups.length - 1]) === json) return;   // oförändrad
+
+  const stamp = Utilities.formatDate(new Date(), 'Europe/Stockholm', 'yyyy-MM-dd HHmmss');
+  const copy = configSheet.copyTo(ss);
+  copy.setName(CONFIG_BACKUP_PREFIX + stamp);
+  copy.hideSheet();
+  const all = listConfigBackupSheets(ss);
+  for (let i = 0; i < all.length - CONFIG_BACKUPS_KEEP; i++) ss.deleteSheet(all[i]);
+}
+
+function listConfigBackups() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const list = listConfigBackupSheets(ss);
+  if (!list.length) { Logger.log('Inga säkerhetskopior av konfigurationen än.'); return; }
+  list.slice().reverse().forEach((s, i) => {
+    Logger.log((i === 0 ? '(nyaste) ' : '') + s.getName() + ' — config sparad ' + s.getRange(1, 2).getValue());
+  });
+}
+
+function restoreConfigBackup() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const list = listConfigBackupSheets(ss);
+  if (!list.length) { Logger.log('Det finns inga säkerhetskopior att återställa.'); return; }
+  const target = RESTORE_CONFIG_BACKUP_NAME
+    ? list.filter((s) => s.getName() === RESTORE_CONFIG_BACKUP_NAME)[0]
+    : list[list.length - 1];
+  if (!target) { Logger.log('Hittar ingen kopia som heter "' + RESTORE_CONFIG_BACKUP_NAME + '". Kör listConfigBackups för namnen.'); return; }
+  const json = readConfigJsonFromSheet(target);
+  if (!json) { Logger.log('Kopian "' + target.getName() + '" är tom — avbryter.'); return; }
+  try { JSON.parse(json); } catch (err) { Logger.log('Kopian "' + target.getName() + '" innehåller ingen giltig konfiguration — avbryter.'); return; }
+  const result = saveConfig(json);          // sparar först en kopia av nuvarande läge, skriver sedan den valda
+  Logger.log('Återställde konfigurationen från "' + target.getName() + '". ' + result.getContent());
 }
 
 /* Läsbar förteckning kod → fråga, byggd om varje gång configen sparas.
