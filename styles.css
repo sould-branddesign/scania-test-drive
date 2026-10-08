@@ -2065,3 +2065,9 @@ body.admin[data-form="cab"] .topnav__tag {
   border-color: rgba(24, 200, 212, .4);
 }
 
+/* fullscreen: slide edge to edge, buttons appear only while the mouse moves */
+.deck.is-full .slide { border-radius: 0; border: none; box-shadow: none; }
+.deck.is-full .deck__controls { position: absolute; left: 0; right: 0; bottom: 0; opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+.deck.is-full .deck__close { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+.deck.is-full.is-active .deck__controls, .deck.is-full.is-active .deck__close { opacity: 1; pointer-events: auto; }
+.deck.is-full:not(.is-active) { cursor: none; }

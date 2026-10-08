@@ -824,6 +824,22 @@
     document.addEventListener('keydown', deck.onKey);
     deck.onResize = fitStage;
     window.addEventListener('resize', deck.onResize);
+    /* In fullscreen the slide fills the screen edge to edge and the buttons step back until the mouse moves. */
+    let hideTimer = null;
+    deck.onFullChange = () => {
+      const full = document.fullscreenElement === el;
+      el.classList.toggle('is-full', full);
+      el.classList.remove('is-active');
+      fitStage();
+    };
+    deck.onMouse = () => {
+      if (!el.classList.contains('is-full')) return;
+      el.classList.add('is-active');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => el.classList.remove('is-active'), 2500);
+    };
+    document.addEventListener('fullscreenchange', deck.onFullChange);
+    el.addEventListener('mousemove', deck.onMouse);
 
     /* Swipe support */
     let swipeX = null;
@@ -842,6 +858,7 @@
     if (!deck) return;
     document.removeEventListener('keydown', deck.onKey);
     window.removeEventListener('resize', deck.onResize);
+    document.removeEventListener('fullscreenchange', deck.onFullChange);
     try { if (document.fullscreenElement) document.exitFullscreen(); } catch (e) { /* ignore */ }
     deck.el.remove();
     deck = null;
@@ -863,7 +880,8 @@
   function fitStage() {
     if (!deck) return;
     const wrap = $('.slide-stage-wrap', deck.el);
-    const s = Math.min((wrap.clientWidth - 48) / 1280, (wrap.clientHeight - 48) / 720);
+    const m = deck.el.classList.contains('is-full') ? 0 : 48;
+    const s = Math.min((wrap.clientWidth - m) / 1280, (wrap.clientHeight - m) / 720);
     $('.slide-stage', deck.el).style.setProperty('--s', s > 0 ? s : 0.1);
   }
 
