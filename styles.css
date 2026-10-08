@@ -1875,7 +1875,7 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
 .slide {
   width: 1280px; height: 720px; position: relative; overflow: hidden;
   border-radius: 24px; border: 1px solid rgba(27, 50, 98, .8);
-  background: linear-gradient(180deg, rgba(20, 44, 92, .45), rgba(2, 16, 44, .1) 42%), var(--navy-900);
+  background: var(--navy-900);
   padding: 66px 76px; display: flex; flex-direction: column;
   box-shadow: 0 30px 90px -30px rgba(0, 0, 0, .8);
 }
@@ -1888,7 +1888,7 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
 }
 .slide > * { position: relative; z-index: 1; }
 .slide__head { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; margin-bottom: 30px; }
-.slide__title { font-size: 42px; font-weight: 800; text-transform: uppercase; line-height: 1.02; margin: 0; max-width: 74%; letter-spacing: -.01em; font-family: 'ScaniaSansHeadline', var(--font); }
+.slide__title { font-size: 34px; font-weight: 800; text-transform: uppercase; line-height: 1.02; margin: 0; max-width: 74%; letter-spacing: -.01em; font-family: 'ScaniaSansHeadline', var(--font); }
 .slide__brand { display: inline-block; width: auto; height: 20px; opacity: .35; align-self: flex-start; }
 
 .slide__bars { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 26px; }
@@ -1903,7 +1903,11 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
 .scale-rule::after { right: 0; }
 
 .slide--group .slide__head { margin-bottom: 20px; }
-.slide--group .slide__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 430px 1fr; gap: 44px; align-items: center; }
+.slide--group .slide__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 270px 1fr; gap: 20px; align-items: center; }
+/* the radar is the focus: it climbs up beside the title and out to the slide's right edge */
+.slide--group .slide__radar { margin: -70px -56px -50px 0; }
+.slide--group .slide__list { gap: 12px; }
+.slide--group .slide__veh { padding: 8px 14px; font-size: 20px; line-height: 1.15; white-space: normal; min-height: 50px; display: flex; align-items: center; justify-content: center; }
 .slide__list { display: flex; flex-direction: column; gap: 6px; }
 .slide__listrow { display: flex; align-items: center; gap: 14px; }
 .slide__veh {
@@ -1924,9 +1928,23 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
     linear-gradient(150deg, #07303a 0%, #042033 45%, #02102c 100%);
 }
 .slide--cover .logo { height: 34px; }
+/* Same start-page motion as the apps: three blurred orbs drifting (glow-orb1-3)
+   behind the cover, and the hex pattern pulsing. Sizes are the apps' vmin values
+   at this 720px-tall stage. */
+.slide--cover::before { opacity: .5; animation: hex-pulse 20s ease-in-out infinite; }
+.slide > .slide--cover__glow {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  --gx1: 20%; --gy1: 5%; --gx2: 80%; --gy2: 10%; --gx3: 50%; --gy3: 90%;
+  animation: glow-orb1 40s ease-in-out infinite, glow-orb2 28s ease-in-out infinite, glow-orb3 52s ease-in-out infinite;
+  background:
+    radial-gradient(circle 396px at var(--gx1) var(--gy1), rgba(7,169,158,.65) 30%, transparent 70%),
+    radial-gradient(circle 360px at var(--gx2) var(--gy2), rgba(1,152,195,.55) 30%, transparent 70%),
+    radial-gradient(circle 375px at var(--gx3) var(--gy3), rgba(7,169,158,.45) 30%, transparent 70%);
+  filter: blur(35px);
+}
 .slide--cover__eyebrow { font-size: 20px; letter-spacing: .22em; text-transform: uppercase; color: rgba(234, 242, 255, .8); margin-bottom: 14px; }
 .slide--cover__title { font-size: 112px; line-height: .9; font-weight: 900; text-transform: uppercase; margin: 0; letter-spacing: -.01em; font-family: 'ScaniaSansHeadline', var(--font); }
-.slide--cover__meta { margin-top: 26px; font-size: 22px; color: var(--teal-bright); letter-spacing: .04em; }
+.slide--cover__meta { margin-top: 26px; font-size: 22px; color: rgba(234, 242, 255, .8); letter-spacing: .04em; }
 
 .deck__controls { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 18px calc(18px + env(safe-area-inset-bottom)); }
 .deck__btn {

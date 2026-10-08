@@ -100,7 +100,7 @@
   /* [name, id?] — the id is permanent (answers are stored under it), so a
      renamed vehicle keeps its original id. */
   const DEFAULT_CAB_VEHICLES = [
-    ['Scania CR20H'], ['Volvo FH Aero'], ['MAN TGX'], ['Mercedes Actros ProCabin', 'mercedes-actros'],
+    ['Scania CR20H'], ['Volvo FH Aero'], ['MAN TGX'], ['Mercedes Actros', 'mercedes-actros'],
   ].map(([name, id]) => ({ id: id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
 
   const DEFAULT_CAB_QUESTIONS = [

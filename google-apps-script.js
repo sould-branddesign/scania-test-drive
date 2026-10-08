@@ -466,7 +466,7 @@ function restoreConfigBackup() {
    säkerhetskopia av läget före skapas automatiskt (kan backas med
    restoreConfigBackup) och plattorna får det nya namnet inom ungefär en minut. */
 const RENAME_CAB_VEHICLE_ID = 'mercedes-actros';
-const RENAME_CAB_VEHICLE_TO = 'Mercedes Actros ProCabin';
+const RENAME_CAB_VEHICLE_TO = 'Mercedes Actros';
 
 function renameCabVehicle() {
   const config = readConfig().config;
