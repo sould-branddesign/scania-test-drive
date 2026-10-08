@@ -1917,6 +1917,9 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
   position: relative;
 }
 .slide__veh::before { content: ''; position: absolute; inset: 0; border-radius: 999px; padding: 1.5px; background: linear-gradient(135deg, var(--brand, var(--navy-600)), var(--brand-b, var(--brand, var(--navy-600)))); -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
+/* Test Drive with six vehicles or fewer: large tags, widened so the longer truck names stay on one line */
+.slide--group.is-wide .slide__body { grid-template-columns: 420px 1fr; }
+.slide--group.is-wide .slide__veh { font-size: 18px; white-space: nowrap; }
 /* more than six vehicles (Test Drive): wider column, one-line tags so all twelve fit */
 .slide--group.is-compact .slide__body { grid-template-columns: 340px 1fr; }
 .slide--group.is-compact .slide__list { gap: 6px; }
@@ -1946,7 +1949,7 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
     radial-gradient(circle 375px at var(--gx3) var(--gy3), rgba(7,169,158,.45) 30%, transparent 70%);
   filter: blur(35px);
 }
-.slide--cover__eyebrow { font-size: 20px; letter-spacing: .22em; text-transform: uppercase; color: rgba(234, 242, 255, .8); margin-bottom: 14px; }
+.slide--cover__eyebrow { font-size: 20px; letter-spacing: .22em; text-transform: uppercase; color: rgba(234, 242, 255, .8); margin-bottom: 14px; font-family: 'ScaniaSansHeadline', var(--font); }
 .slide--cover__title { font-size: 112px; line-height: .9; font-weight: 900; text-transform: uppercase; margin: 0; letter-spacing: -.01em; font-family: 'ScaniaSansHeadline', var(--font); }
 .slide--cover__meta { margin-top: 26px; font-size: 22px; color: rgba(234, 242, 255, .8); letter-spacing: .04em; }
 

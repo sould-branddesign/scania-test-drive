@@ -579,7 +579,7 @@
   function slideGroup() {
     const cats = activeQuestions(), brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
-    const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : ''}">
+    const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : (activeForm === 'cab' ? '' : ' is-wide')}">
       <div class="slide__head">${BRAND_LOGO}<h2 class="slide__title">${filterGroup ? (d => `${d.getDate()} ${['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]} ${d.getFullYear()}`)(new Date(filterGroup)) + ' Comparison' : 'Overall Comparison'}</h2></div>
       <div class="slide__body"><div class="slide__list"></div><div class="slide__radar"></div></div>
     </div>`);
@@ -592,8 +592,8 @@
       </div>`));
     });
     const series = brands.map((b) => ({ brand: b, values: cats.map((c) => brandCategoryScore(b, c)) }));
-    $('.slide__radar', el).appendChild(renderRadar(cats.map((c) => c.title), series, { size: 500, radius: 0.38, padX: 210, padY: 48, font: 16, wrap: 18, labelGap: 36, labelColor: '#fff', full: true, animate: true }));
-    revealRadar(el);
+    $('.slide__radar', el).appendChild(renderRadar(cats.map((c) => c.title), series, { size: 500, radius: 0.38, padX: 210, padY: 48, font: 16, wrap: 18, labelGap: 36, labelColor: '#fff', full: true, animate: activeForm === 'cab' }));
+    if (activeForm === 'cab') revealRadar(el);   // Test Drive's radar appears at once
     return el;
   }
 
