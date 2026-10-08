@@ -579,7 +579,7 @@
   function slideGroup() {
     const cats = activeQuestions(), brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
-    const el = h(`<div class="slide slide--group">
+    const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : ''}">
       <div class="slide__head">${BRAND_LOGO}<h2 class="slide__title">${filterGroup ? (d => `${d.getDate()} ${['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]} ${d.getFullYear()}`)(new Date(filterGroup)) + ' Comparison' : 'Overall Comparison'}</h2></div>
       <div class="slide__body"><div class="slide__list"></div><div class="slide__radar"></div></div>
     </div>`);
