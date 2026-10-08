@@ -1949,7 +1949,8 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
     radial-gradient(circle 375px at var(--gx3) var(--gy3), rgba(7,169,158,.45) 30%, transparent 70%);
   filter: blur(35px);
 }
-.slide--cover__eyebrow { font-size: 20px; letter-spacing: .22em; text-transform: uppercase; color: rgba(234, 242, 255, .8); margin-bottom: 14px; font-family: 'ScaniaSansHeadline', var(--font); }
+/* same values as the apps' cover eyebrow on the iPad (.cover__eyebrow: 18px, 1px tracking, 6px margin + 6px grid gap) */
+.slide--cover__eyebrow { font-size: 18px; letter-spacing: 1px; text-transform: uppercase; color: rgba(234, 242, 255, .8); margin-bottom: 12px; font-family: 'ScaniaSansHeadline', var(--font); }
 .slide--cover__title { font-size: 112px; line-height: .9; font-weight: 900; text-transform: uppercase; margin: 0; letter-spacing: -.01em; font-family: 'ScaniaSansHeadline', var(--font); }
 .slide--cover__meta { margin-top: 26px; font-size: 22px; color: rgba(234, 242, 255, .8); letter-spacing: .04em; }
 
