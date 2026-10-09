@@ -1911,7 +1911,7 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
   flex: 1; text-align: center; padding: 8px 14px; border-radius: 999px;
   /* gradient outline as a real border (padding-box fill + border-box gradient): a masked ::before ring rendered
      unevenly under the stage's fractional scale (top/left about twice as thick as bottom/right) */
-  border: 1.5px solid transparent;
+  border: 2px solid transparent;
   background: linear-gradient(var(--navy-900), var(--navy-900)) padding-box,
               linear-gradient(135deg, var(--brand, var(--navy-600)), var(--brand-b, var(--brand, var(--navy-600)))) border-box;
   font-weight: 700; font-size: 14.5px; color: #fff;
