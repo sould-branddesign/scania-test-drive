@@ -1903,11 +1903,11 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
 .scale-rule::after { right: 0; }
 
 .slide--group .slide__head { margin-bottom: 20px; }
-.slide--group .slide__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 270px 1fr; gap: 20px; align-items: center; }
+.slide--group .slide__body { flex: 1; min-height: 0; display: grid; grid-template-columns: 258px 1fr; gap: 20px; align-items: center; }
 /* the radar is the focus: it climbs up beside the title and out to the slide's right edge */
 .slide--group .slide__radar { margin: -70px -56px -50px 0; }
 .slide--group .slide__list { gap: 12px; }
-.slide--group .slide__veh { padding: 8px 14px; font-size: 20px; line-height: 1.15; white-space: normal; min-height: 50px; display: flex; align-items: center; justify-content: center; }
+.slide--group .slide__veh { padding: 8px 10px; font-size: 20px; line-height: 1.15; white-space: normal; min-height: 50px; display: flex; align-items: center; justify-content: center; }
 .slide__list { display: flex; flex-direction: column; gap: 6px; }
 .slide__listrow { display: flex; align-items: center; gap: 14px; }
 .slide__veh {

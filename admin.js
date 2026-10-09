@@ -469,9 +469,14 @@
     axes.forEach((label, i) => {
       const [x, y] = pt(i, R);
       svg.appendChild(mk('line', { x1: cx, y1: cy, x2: x, y2: y, stroke: '#1b3262', 'stroke-width': 1 }));
-      const [lx, ly] = pt(i, R + (o.labelGap || 16));
-      const anchor = Math.abs(lx - cx) < 8 ? 'middle' : (lx > cx ? 'start' : 'end');
+      let [lx, ly] = pt(i, R + (o.labelGap || 16));
       const lines = wrapLabel(label, o.wrap || 16, o.full);
+      /* o.center: every label is centred on its own lines; side labels are pushed out by half their width so they clear the chart */
+      if (o.center) {
+        const half = Math.max(...lines.map((l) => l.length)) * (o.font || 13) * 0.6 / 2;
+        if (lx > cx + 8) lx += half; else if (lx < cx - 8) lx -= half;
+      }
+      const anchor = o.center ? 'middle' : (Math.abs(lx - cx) < 8 ? 'middle' : (lx > cx ? 'start' : 'end'));
       const txt = mk('text', { x: lx, y: ly, fill: o.labelColor || '#aebfde', 'font-size': o.font || 13, 'font-weight': 700, 'text-anchor': anchor, 'dominant-baseline': 'middle' });
       lines.forEach((ln, li) => { const span = mk('tspan', { x: lx, dy: li === 0 ? `${-(lines.length - 1) * 0.55}em` : '1.1em' }); span.textContent = ln; txt.appendChild(span); });
       svg.appendChild(txt);
@@ -592,7 +597,7 @@
       </div>`));
     });
     const series = brands.map((b) => ({ brand: b, values: cats.map((c) => brandCategoryScore(b, c)) }));
-    $('.slide__radar', el).appendChild(renderRadar(cats.map((c) => c.title), series, { size: 500, radius: 0.38, padX: 210, padY: 48, font: 16, wrap: 18, labelGap: 36, labelColor: '#fff', full: true, animate: activeForm === 'cab' }));
+    $('.slide__radar', el).appendChild(renderRadar(cats.map((c) => c.title), series, { size: 500, radius: 0.38, padX: 210, padY: 48, font: 16, wrap: 18, labelGap: 36, labelColor: '#fff', center: true, full: true, animate: activeForm === 'cab' }));
     if (activeForm === 'cab') revealRadar(el);   // Test Drive's radar appears at once
     return el;
   }
