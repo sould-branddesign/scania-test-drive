@@ -21,14 +21,14 @@
   let ui = { view: 'intro', currentVehicle: null, stepIndex: 0, draftsByVehicle: {}, completedVehicles: new Set(), timers: {}, timerOrder: [] };
 
   /* ---------- per-vehicle countdown ---------- */
-  /* The first vehicle a visitor starts gets 13 minutes, every other one 9 —
+  /* The first vehicle a visitor starts gets 13 minutes, every other one 10 —
      whichever model it is. The clock only runs while that vehicle's
      question screens are showing (it pauses in the hub and resumes where
      it left off), and it never blocks anything: when time is up it just
      turns red and counts up. Elapsed time is measured from timestamps, not
      by counting ticks, so a dimmed or throttled tablet doesn't drift. */
   const FIRST_VEHICLE_MIN = 13;
-  const OTHER_VEHICLE_MIN = 9;
+  const OTHER_VEHICLE_MIN = 10;
 
   function resetTimers() { ui.timers = {}; ui.timerOrder = []; }
 

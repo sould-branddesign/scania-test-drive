@@ -477,11 +477,12 @@
       lines.forEach((ln, li) => { const span = mk('tspan', { x: lx, dy: li === 0 ? `${-(lines.length - 1) * 0.55}em` : '1.1em' }); span.textContent = ln; txt.appendChild(span); });
       svg.appendChild(txt);
     });
-    series.slice().sort((a, b) => avg(a.values) - avg(b.values)).forEach((s) => {
+    /* highest average is drawn first, so it sits at the bottom and the smaller shapes stay visible on top of it */
+    series.slice().sort((a, b) => avg(b.values) - avg(a.values)).forEach((s) => {
       const accent = brandAccent(s.brand);
       const pts = s.values.map((v, i) => pt(i, R * (clamp(v || 0, 0, 10) / 10)).join(',')).join(' ');
       /* opts.animate: each brand's shape sits in its own group (hidden until the slide reveals it, one at a time) */
-      const layer = o.animate ? mk('g', { class: 'radar__series', 'data-brand': s.brand }) : svg;
+      const layer = o.animate ? mk('g', { class: 'radar__series', 'data-brand': s.brand, 'data-avg': avg(s.values) }) : svg;
       const poly = mk('polygon', { points: pts, fill: accent, 'fill-opacity': 0.12, stroke: accent, 'stroke-width': 2.2, 'stroke-linejoin': 'round' });
       poly.style.filter = `drop-shadow(0 0 5px ${accent}aa)`;
       layer.appendChild(poly);
@@ -550,7 +551,7 @@
      Each shape unfolds axis by axis (clockwise from the top) with a small overshoot; its list row slides in
      and the score counts up alongside. */
   function revealRadar(slide) {
-    const groups = Array.from(slide.querySelectorAll('.radar__series'));
+    const groups = Array.from(slide.querySelectorAll('.radar__series')).sort((a, b) => a.dataset.avg - b.dataset.avg);   // lowest average first, so the leader lands last
     const rows = Array.from(slide.querySelectorAll('.slide__listrow'));
     const GROW = 900, AXIS = 70, STEP = 2000, START = 500;
     const easeOut = (x) => 1 - Math.pow(1 - x, 3);
