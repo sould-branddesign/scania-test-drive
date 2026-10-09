@@ -885,8 +885,17 @@
     if (!deck) return;
     const wrap = $('.slide-stage-wrap', deck.el);
     const m = deck.el.classList.contains('is-full') ? 0 : 48;
-    const s = Math.min((wrap.clientWidth - m) / 1280, (wrap.clientHeight - m) / 720);
-    $('.slide-stage', deck.el).style.setProperty('--s', s > 0 ? s : 0.1);
+    const W = wrap.clientWidth - m, H = wrap.clientHeight - m;
+    /* The stage fills the screen at any aspect ratio. Wider than 16:9: 720 units tall and as wide as the screen
+       (up to 12:5). Narrower than 16:9: 1280 units wide and as tall as the screen (down to 7:6). Beyond those
+       limits the slide is letterboxed. */
+    let s, sw, sh;
+    if (W / H >= 16 / 9) { s = H / 720; sh = 720; sw = Math.min(W / s, 1728); }
+    else { s = W / 1280; sw = 1280; sh = Math.min(H / s, 1100); }
+    const stage = $('.slide-stage', deck.el);
+    stage.style.setProperty('--s', s > 0 ? s : 0.1);
+    stage.style.setProperty('--sw', sw + 'px');
+    stage.style.setProperty('--sh', sh + 'px');
   }
 
   function toggleFull() {

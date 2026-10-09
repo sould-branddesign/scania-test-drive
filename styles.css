@@ -1862,18 +1862,18 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
 
 /* ============================================================
    PRESENT — 16:9 results slideshow (admin)
-   A fixed 1280×720 stage scaled to fit, so slides are pixel-consistent.
+   A 720-unit-tall stage whose width follows the screen's aspect ratio (--sw), scaled to fit, so slides are pixel-consistent.
    ============================================================ */
 .deck {
   position: fixed; inset: 0; z-index: 200;
-  background: #01070e;
+  background: var(--navy-900);
   display: flex; flex-direction: column;
 }
 .slide-stage-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.slide-stage { width: 1280px; height: 720px; flex: 0 0 auto; transform: scale(var(--s, 1)); transform-origin: center center; }
+.slide-stage { width: var(--sw, 1280px); height: var(--sh, 720px); flex: 0 0 auto; transform: scale(var(--s, 1)); transform-origin: center center; }
 
 .slide {
-  width: 1280px; height: 720px; position: relative; overflow: hidden;
+  width: 100%; height: 100%; position: relative; overflow: hidden;
   border-radius: 24px; border: 1px solid rgba(27, 50, 98, .8);
   background: var(--navy-900);
   padding: 66px 76px; display: flex; flex-direction: column;
