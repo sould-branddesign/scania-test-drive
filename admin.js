@@ -224,8 +224,7 @@
     } else {
       wrap.appendChild(groupCard());
       const grid = h('<div class="cards-grid"></div>');
-      const note = 'Models included: ' + evald.map((v) => `<nobr>${esc(v.name)}</nobr>`).join(', ');
-      activeQuestions().forEach((cat) => grid.appendChild(barCard(cat, note)));
+      activeQuestions().forEach((cat) => grid.appendChild(barCard(cat)));
       wrap.appendChild(grid);
     }
 
@@ -350,18 +349,16 @@
     container.appendChild(h(`<span class="group-setter__label">Today's date: <strong>${today}</strong></span>`));
   }
 
-  function barCard(cat, note) {
+  function barCard(cat) {
     const bars = brandsPresent().map((b) => ({ brand: b, score: brandCategoryScore(b, cat) })).filter((x) => x.score != null);
     bars.sort((a, b) => b.score - a.score);
     const card = h(`<div class="card">
       <div class="card__head">
         <h2 class="card__title">${esc(cat.title)}</h2>
-        <p class="card__note"></p>
       </div>
       <div class="bars"></div>
       <div class="bar-axis"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div>
     </div>`);
-    $('.card__note', card).innerHTML = note;
     const barsEl = $('.bars', card);
     bars.forEach((bar, i) => {
       const br = BRANDS[bar.brand];
@@ -384,7 +381,6 @@
     const cats = activeQuestions();
     const brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
-    const note = 'Models included: ' + evald.map((v) => v.name).join(', ');
 
     const card = h(`<div class="card" style="margin-bottom:22px">
       <div class="card__head">

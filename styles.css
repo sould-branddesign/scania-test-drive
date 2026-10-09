@@ -1195,7 +1195,6 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   margin-bottom: 22px;
 }
 .card__title { font-size: 22px; font-weight: 800; text-transform: uppercase; margin: 0; line-height: 1.1; max-width: 60%; letter-spacing: -.02em; }
-.card__note { font-size: 10.5px; color: var(--ink-faint); text-align: right; max-width: 38%; line-height: 1.5; letter-spacing: .02em; margin: 0; padding-top: 3px; }
 
 .cards-grid {
   display: grid;
@@ -1480,7 +1479,6 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
   .group-card { grid-template-columns: 1fr; }
   .group-list { max-height: none; order: 2; }
   .card__title { max-width: 100%; }
-  .card__note { display: none; }
   .cover__title { font-size: clamp(52px, 10vw, 88px); }
   .metric-edit__grid { grid-template-columns: 1fr 1fr; }
   .topnav__links .navlink { padding: 8px 9px; font-size: 12px; }
