@@ -536,7 +536,7 @@
     const evald = evaluatedVehicles();
     return h(`<div class="slide slide--cover">
       <div class="slide--cover__glow" aria-hidden="true"></div>
-      ${LOGO}
+      <img class="logo-lockup" src="assets/scania-lockup.png" alt="Scania">
       <div class="slide--cover__btm">
         <div class="slide--cover__eyebrow">Sales Force Boost | 2026</div>
         <h1 class="slide--cover__title">Evaluation<br>Results</h1>
@@ -580,7 +580,7 @@
     const cats = activeQuestions(), brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
     const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : (activeForm === 'cab' ? '' : ' is-wide')}">
-      <div class="slide__head">${BRAND_LOGO}<h2 class="slide__title">${filterGroup ? (d => `${d.getDate()} ${['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]} ${d.getFullYear()}`)(new Date(filterGroup)) + ' Comparison' : 'Overall Comparison'}</h2></div>
+      <div class="slide__head"><img class="slide__lockup" src="assets/scania-lockup.png" alt="Scania"></div>
       <div class="slide__body"><div class="slide__list"></div><div class="slide__radar"></div></div>
     </div>`);
     const list = $('.slide__list', el);
@@ -723,8 +723,7 @@
     const winner = evald[0];
 
     const el = h(`<div class="slide slide--summary">
-      ${BRAND_LOGO}
-      <h2 class="slide__title" style="margin-top:10px">Summary</h2>
+      <div class="slide__head"><img class="slide__lockup" src="assets/scania-lockup.png" alt="Scania"></div>
       <div class="summary__ranking"></div>
     </div>`);
 

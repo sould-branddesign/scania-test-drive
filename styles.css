@@ -1935,6 +1935,8 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
     linear-gradient(150deg, #07303a 0%, #042033 45%, #02102c 100%);
 }
 .slide--cover .logo { height: 34px; }
+.slide__lockup { height: 32px; width: auto; align-self: flex-start; }   /* full lock-up on slides 2 and 3 */
+.slide--cover .logo-lockup { height: 32px; width: auto; align-self: flex-start; }   /* full lock-up: emblem + wordmark */
 /* Same start-page motion as the apps: three blurred orbs drifting (glow-orb1-3)
    behind the cover, and the hex pattern pulsing. Sizes are the apps' vmin values
    at this 720px-tall stage. */
