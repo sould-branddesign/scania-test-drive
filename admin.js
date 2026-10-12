@@ -13,6 +13,14 @@
   let submissions = [];   // all submissions loaded from Sheets
   const _today = new Date(); let filterGroup = `${_today.getFullYear()}-${String(_today.getMonth()+1).padStart(2,'0')}-${String(_today.getDate()).padStart(2,'0')}`;   // default to today (local)
   let filterMarkets = new Set();  // empty = all markets
+  /* Cab Assessment is run by two groups a day: submissions before 13:00 (Stockholm time) belong to the morning
+     group, the rest to the afternoon group. '' = the whole day. */
+  const SPLIT_HOUR = 13;
+  const HALF_LABEL = { am: 'Morning group', pm: 'Afternoon group' };
+  const stockholmHour = (ts) => { const d = new Date(ts); return isNaN(d) ? null : Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Stockholm', hour: 'numeric', hourCycle: 'h23' }).format(d)); };
+  const halfOf = (ts) => { const hr = stockholmHour(ts); return hr == null ? null : (hr < SPLIT_HOUR ? 'am' : 'pm'); };
+  /* the group that is on right now is preselected (staff can still pick the other one or the whole day) */
+  let filterHalf = halfOf(Date.now()) || '';
   let activeForm = new URLSearchParams(location.search).get('form') === 'cab' ? 'cab' : 'testdrive';
   const toIso = (s) => { const d = new Date(s); if (isNaN(d)) return s; const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const dy = String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dy}`; };
 
@@ -74,6 +82,7 @@
     const formId = activeForm === 'cab' ? 'cab' : 'testdrive';
     if ((s.formId || 'testdrive') !== formId) return false;
     if (filterGroup && toIso(s.group) !== toIso(filterGroup)) return false;
+    if (activeForm === 'cab' && filterHalf && halfOf(s.timestamp) !== filterHalf) return false;
     if (filterMarkets.size && !filterMarkets.has(s.country)) return false;
     return true;
   }
@@ -122,7 +131,7 @@
   /* nav */
   document.addEventListener('click', (e) => {
     const fb = e.target.closest('[data-form]');
-    if (fb && fb.dataset.form !== activeForm) { activeForm = fb.dataset.form; filterGroup = toIso(new Date()); filterMarkets.clear(); applyFilter(); setFormTheme(); render(); return; }
+    if (fb && fb.dataset.form !== activeForm) { activeForm = fb.dataset.form; filterGroup = toIso(new Date()); filterHalf = halfOf(Date.now()) || ''; filterMarkets.clear(); applyFilter(); setFormTheme(); render(); return; }
     const tab = e.target.closest('.navlink[data-tab]');
     if (tab) go(tab.dataset.tab);
   });
@@ -162,7 +171,7 @@
       <div class="results__tools">
         <div class="group-setter" id="groupSetter"></div>
         <div class="results__actions">
-          <button class="btn" data-act="present" ${evald.length ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'}>▶ Present — ${filterGroup || 'All days'}</button>
+          <button class="btn" data-act="present" ${evald.length ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'}>▶ Present — ${filterGroup || 'All days'}${activeForm === 'cab' && filterHalf ? ' · ' + HALF_LABEL[filterHalf] : ''}</button>
           <button class="btn secondary" data-act="export" ${submissions.some(matchesFilter) ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'} title="Download the evaluations shown by the date and market filters as an Excel file">Export Excel</button>
         </div>
       </div>
@@ -205,10 +214,21 @@
     bar.appendChild(dateSelect);
     wrap.appendChild(bar);
 
+    if (activeForm === 'cab') {
+      const halfBar = h('<div class="filter-bar"></div>');
+      halfBar.appendChild(h('<span class="filter-bar__label">Group:</span>'));
+      [['', 'Whole day'], ['am', 'Morning'], ['pm', 'Afternoon']].forEach(([v, label]) => {
+        const btn = h(`<button class="filter-btn ${filterHalf === v ? 'is-active' : ''}" data-fh="${v}">${label}</button>`);
+        halfBar.appendChild(btn);
+      });
+      wrap.appendChild(halfBar);
+    }
+
     const markets = [...new Set(submissions.filter((s) => {
       if ((s.formId || 'testdrive') !== formId) return false;
       if (!s.country) return false;
       if (activeIso && toIso(s.group || '') !== activeIso) return false;
+      if (activeForm === 'cab' && filterHalf && halfOf(s.timestamp) !== filterHalf) return false;
       return true;
     }).map((s) => s.country))].sort();
     const marketBar = h('<div class="filter-bar filter-bar--market"></div>');
@@ -229,6 +249,8 @@
     }
 
     wrap.addEventListener('click', (e) => {
+      const fh = e.target.closest('[data-fh]');
+      if (fh) { filterHalf = fh.dataset.fh; filterMarkets.clear(); applyFilter(); render(); return; }
       const fm = e.target.closest('[data-fm]');
       if (fm) {
         const m = fm.dataset.fm;
@@ -319,7 +341,7 @@
     if (!rows.length) { toast('Nothing to export for this filter'); return; }
     const formName = activeForm === 'cab' ? 'Cab Assessment' : 'Test Drive';
     const day = filterGroup ? toIso(filterGroup) : 'all-days';
-    const base = 'scania-' + formName.toLowerCase().replace(/\s+/g, '-') + '-' + day + (filterMarkets.size ? '-' + [...filterMarkets].join('+').toLowerCase().replace(/\s+/g, '-') : '');
+    const base = 'scania-' + formName.toLowerCase().replace(/\s+/g, '-') + '-' + day + (activeForm === 'cab' && filterHalf ? '-' + (filterHalf === 'am' ? 'morning' : 'afternoon') : '') + (filterMarkets.size ? '-' + [...filterMarkets].join('+').toLowerCase().replace(/\s+/g, '-') : '');
     try {
       const XLSX = await loadSheetJS();
       const wb = XLSX.utils.book_new();
@@ -542,7 +564,7 @@
       <div class="slide--cover__btm">
         <div class="slide--cover__eyebrow">Sales Force Boost | 2026</div>
         <h1 class="slide--cover__title">Evaluation<br>Results</h1>
-        <div class="slide--cover__meta">${evald.length} vehicles · ${activeQuestions().length} categories · ${activeForm === 'cab' ? 'Cab Assessment' : 'Test Drive'}${filterGroup ? ' · ' + (d => `${d.getDate()} ${['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]} ${d.getFullYear()}`)(new Date(filterGroup)) : ''}</div>
+        <div class="slide--cover__meta">${evald.length} vehicles · ${activeQuestions().length} categories · ${activeForm === 'cab' ? 'Cab Assessment' : 'Test Drive'}${filterGroup ? ' · ' + (d => `${d.getDate()} ${['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]} ${d.getFullYear()}`)(new Date(filterGroup)) : ''}${activeForm === 'cab' && filterHalf ? ' · ' + HALF_LABEL[filterHalf] : ''}</div>
       </div>
     </div>`);
   }
@@ -1113,7 +1135,7 @@
     const box = h(`<div class="confirm-box testconn-box">
       <div class="testconn-icon testconn-icon--spin"></div>
       <p class="confirm-box__title" id="testconnTitle">Testing connection…</p>
-      <p class="confirm-box__msg" id="testconnMsg">Checking that this device can reach Google Sheets.</p>
+      <p class="confirm-box__msg" id="testconnMsg">Checking that this device can reach the server.</p>
       <div class="confirm-box__btns">
         <button class="btn-cancel">Close</button>
       </div>
@@ -1144,7 +1166,7 @@
             icon.className = 'testconn-icon testconn-icon--ok';
             icon.textContent = '✓';
             title.textContent = 'Connected';
-            msg.textContent = 'This device can reach Google Sheets — everything is live.';
+            msg.textContent = 'This device can reach the server — everything is live.';
           } else {
             icon.className = 'testconn-icon testconn-icon--fail';
             icon.textContent = '✕';
