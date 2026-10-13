@@ -1846,7 +1846,7 @@ body.test .cover {
   box-shadow: none;
   background: transparent;
   padding:
-    calc(40px + env(safe-area-inset-top))
+    calc(17px + env(safe-area-inset-top))   /* the logo's centre lines up with the logo in the header row of the other screens */
     clamp(28px, 6vw, 80px)
     calc(48px + env(safe-area-inset-bottom) + var(--lift, 0px))
     clamp(28px, 6vw, 80px);
