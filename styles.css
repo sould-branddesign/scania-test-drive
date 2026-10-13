@@ -1740,6 +1740,9 @@ body.admin .form-btn { font-size: 13px; padding: 7px 18px; }
      so it's the same on every question regardless of content length. The
      sliders below just follow their own normal spacing under it. */
   body.test .screen__body:has(> .question-head) { justify-content: flex-start; padding-bottom: 0; }
+  /* Language and vehicle-choice screens: centring each one on its own content put the title at a different height
+     depending on how much there is below it. Pin the title to the same distance from the top on all of them. */
+  body.test .screen__body:has(> .screen__title:first-child) { justify-content: flex-start; padding-top: 9vh; padding-bottom: 0; }
   /* Fixed distance from the progress bar to the question, the same on every
      question regardless of how many sliders or how long the instruction is —
      moved up further (15vh → 10vh → 8vh → 8vh-20px) so a tall question (e.g.
