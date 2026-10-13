@@ -965,6 +965,56 @@
     new MutationObserver(maybeReload).observe(document.body, { attributes: true, attributeFilter: ['class'] });
   })();
 
+  /* ---------- device diagnostics ----------
+     Press and hold the top-left corner of the screen (about 120 × 150 px) for 2 seconds to see how the device is running
+     the app (home-screen app or a Safari tab, screen size, safe areas, service worker...). Meant for checking a
+     tablet on site; nothing is shown or sent unless you do this. */
+  (function () {
+    var holdTimer = null, swallowClick = false, CORNER_W = 120, CORNER_H = 150, HOLD_MS = 2000;
+    function row(k, v) { return '<tr><td style="padding:3px 14px 3px 0;color:#7c8aa3;vertical-align:top;white-space:nowrap">' + k + '</td><td style="padding:3px 0;word-break:break-all">' + v + '</td></tr>'; }
+    function yn(b) { return b ? '<b style="color:#2ee6a6">yes</b>' : '<b style="color:#ff8a65">no</b>'; }
+    function showDiag() {
+      if (document.getElementById('stdDiag')) return;
+      var mm = function (q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+      var probe = document.createElement('div');
+      probe.style.cssText = 'position:fixed;visibility:hidden;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)';
+      document.body.appendChild(probe);
+      var cs = getComputedStyle(probe), safeTop = cs.paddingTop, safeBottom = cs.paddingBottom;
+      probe.remove();
+      var link = document.querySelector('link[rel="manifest"]');
+      var rows = [
+        row('Home-screen app (standalone)', yn(window.navigator.standalone === true || mm('(display-mode: standalone)'))),
+        row('navigator.standalone', String(window.navigator.standalone)),
+        row('display-mode', ['standalone', 'fullscreen', 'minimal-ui', 'browser'].filter(function (m) { return mm('(display-mode: ' + m + ')'); }).join(', ') || 'none matched'),
+        row('Window', window.innerWidth + ' × ' + window.innerHeight + ' (screen ' + screen.width + ' × ' + screen.height + ', ratio ' + window.devicePixelRatio + ')'),
+        row('Safe area top / bottom', safeTop + ' / ' + safeBottom),
+        row('Orientation', (screen.orientation && screen.orientation.type) || (window.innerWidth > window.innerHeight ? 'landscape' : 'portrait')),
+        row('Fullscreen API', yn(document.fullscreenEnabled || document.webkitFullscreenEnabled) + ' (in fullscreen now: ' + yn(!!(document.fullscreenElement || document.webkitFullscreenElement)) + ')'),
+        row('Service worker', 'supported: ' + yn('serviceWorker' in navigator) + ', controlling this page: ' + yn(!!(navigator.serviceWorker && navigator.serviceWorker.controller))),
+        row('Manifest', link ? link.getAttribute('href') : 'none'),
+        row('Address', location.href),
+        row('Time on device', new Date().toString()),
+        row('Browser', navigator.userAgent)
+      ].join('');
+      var box = document.createElement('div');
+      box.id = 'stdDiag';
+      box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(2,16,44,.97);color:#fff;font:14px/1.4 -apple-system,system-ui,sans-serif;padding:max(24px,env(safe-area-inset-top)) 28px 28px;overflow:auto';
+      box.innerHTML = '<div style="max-width:760px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><strong style="font-size:18px">Device check</strong><button id="stdDiagClose" style="font:inherit;font-weight:700;color:#fff;background:#11264f;border:1px solid #1b3262;border-radius:999px;padding:10px 22px">Close</button></div><table style="border-collapse:collapse;width:100%">' + rows + '</table></div>';
+      document.body.appendChild(box);
+      document.getElementById('stdDiagClose').onclick = function () { box.remove(); };
+    }
+    /* a roomy box in the top-left corner: the strip right under the iPad status bar can swallow touches, so the box reaches well below it */
+    function inCorner(e) { return e.clientX <= CORNER_W && e.clientY <= CORNER_H; }
+    document.addEventListener('pointerdown', function (e) {
+      if (!inCorner(e)) return;
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(function () { swallowClick = true; showDiag(); }, HOLD_MS);
+    }, true);
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) { document.addEventListener(ev, function () { clearTimeout(holdTimer); }, true); });
+    /* a long press that opened the panel must not also count as a tap on whatever is underneath */
+    document.addEventListener('click', function (e) { if (swallowClick) { swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  })();
+
   window.ScaniaEval = {
     getQuestions: () => JSON.parse(JSON.stringify(state.questions)),
     setQuestions(questions) {
