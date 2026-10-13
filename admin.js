@@ -505,8 +505,10 @@
       const pts = s.values.map((v, i) => pt(i, R * (clamp(v || 0, 0, 10) / 10)).join(',')).join(' ');
       /* opts.animate: each brand's shape sits in its own group (hidden until the slide reveals it, one at a time) */
       const layer = o.animate ? mk('g', { class: 'radar__series', 'data-brand': s.brand, 'data-avg': avg(s.values) }) : svg;
-      const poly = mk('polygon', { points: pts, fill: accent, 'fill-opacity': 0.12, stroke: accent, 'stroke-width': 2.2, 'stroke-linejoin': 'round' });
-      poly.style.filter = `drop-shadow(0 0 5px ${accent}aa)`;
+      /* opts.flat: lines only (no fill, a softer glow) so overlapping shapes don't blur into each other */
+      const poly = mk('polygon', { points: pts, fill: accent, 'fill-opacity': o.flat ? 0 : 0.12, stroke: accent, 'stroke-width': 2.2, 'stroke-linejoin': 'round' });
+      poly.style.filter = `drop-shadow(0 0 ${o.flat ? 3 : 5}px ${accent}${o.flat ? '88' : 'aa'})`;
+      if (o.dashExcept && s.brand !== o.dashExcept) poly.setAttribute('stroke-dasharray', '8 5');   // presentation: every outline dashed except one brand's
       layer.appendChild(poly);
       s.values.forEach((v, i) => { const [x, y] = pt(i, R * (clamp(v || 0, 0, 10) / 10)); layer.appendChild(mk('circle', { cx: x, cy: y, r: 2.8, fill: accent })); });
       if (o.animate) {
@@ -546,14 +548,14 @@
 
   /* ============================================================
      PRESENT — 16:9 results slideshow
-     Cover → Overall comparison (radar) → Summary.
+     Cover → Overall comparison (radar).
      ============================================================ */
   let deck = null;
 
   function buildSlides() {
     const evald = evaluatedVehicles();
     if (!evald.length) return [];
-    return [{ make: slideCover }, { make: slideGroup }, { make: slideSummary }];
+    return [{ make: slideCover }, { make: slideGroup }];   // slideSummary is no longer part of the deck
   }
 
   function slideCover() {
@@ -573,18 +575,23 @@
      Each shape unfolds axis by axis (clockwise from the top) with a small overshoot; its list row slides in
      and the score counts up alongside. */
   function revealRadar(slide) {
-    const groups = Array.from(slide.querySelectorAll('.radar__series')).sort((a, b) => a.dataset.avg - b.dataset.avg);   // lowest average first, so the leader lands last
     const rows = Array.from(slide.querySelectorAll('.slide__listrow'));
-    const GROW = 900, AXIS = 70, STEP = 2000, START = 500;
+    /* Tags in a row under the radar (Cab): each tag jumps up together with its brand's shape, one brand at a time
+       from left to right. In the side list (Test Drive's layout) the shapes go lowest average first so the leader
+       lands last, and each row slides in from the left with its shape. */
+    const rowMode = slide.classList.contains('is-row');
+    const rowIndex = (brand) => rows.findIndex((r) => r.dataset.brand === brand);
+    const groups = Array.from(slide.querySelectorAll('.radar__series')).sort(rowMode ? (a, b) => rowIndex(a.dataset.brand) - rowIndex(b.dataset.brand) : (a, b) => a.dataset.avg - b.dataset.avg);
+    const GROW = 900, AXIS = 70, STEP = rowMode ? 1800 : 2000, START = 500;
     const easeOut = (x) => 1 - Math.pow(1 - x, 3);
     const back = (x) => { const c1 = 1.25, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
-    rows.forEach((r) => { r.style.opacity = '0'; r.style.transform = 'translateX(-28px)'; const sc = r.querySelector('.slide__score'); r._target = sc.textContent; });
+    rows.forEach((r) => { r.style.opacity = '0'; r.style.transform = rowMode ? 'translateY(34px)' : 'translateX(-28px)'; const sc = r.querySelector('.slide__score'); r._target = sc.textContent; });
     groups.forEach((g, gi) => {
       const mine = rows.filter((r) => r.dataset.brand === g.dataset.brand);
       setTimeout(() => {
         const t0 = performance.now();
         g.style.transition = 'opacity .25s ease'; g.style.opacity = '1';
-        mine.forEach((r) => { r.style.transition = 'opacity .4s ease, transform .6s cubic-bezier(.2,.8,.2,1)'; r.style.opacity = '1'; r.style.transform = 'none'; });
+        mine.forEach((r) => { r.style.transition = rowMode ? 'opacity .3s ease, transform .6s cubic-bezier(.34,1.6,.64,1)' : 'opacity .4s ease, transform .6s cubic-bezier(.2,.8,.2,1)'; r.style.opacity = '1'; r.style.transform = 'none'; });
         const frame = (now) => {
           const t = now - t0;
           g._set((i) => back(clamp((t - i * AXIS) / GROW, 0, 1)));
@@ -603,12 +610,13 @@
   function slideGroup() {
     const cats = activeQuestions(), brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
-    const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : (activeForm === 'cab' ? '' : ' is-wide')}">
+    const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : (activeForm === 'cab' ? ' is-row' : ' is-wide')}">
       <div class="slide__head"><img class="slide__lockup" src="assets/scania-lockup.png" alt="Scania"></div>
       <div class="slide__body"><div class="slide__list"></div><div class="slide__radar"></div></div>
     </div>`);
     const list = $('.slide__list', el);
-    evald.slice(0, 12).forEach((v) => {
+    /* Cab: the tags run from the lowest score on the left to the highest on the right, and appear in that order */
+    (activeForm === 'cab' ? evald.slice().reverse() : evald).slice(0, 12).forEach((v) => {
       const ov = vehicleOverall(v.id);
       list.appendChild(h(`<div class="slide__listrow" data-brand="${v.brand}">
         <span class="slide__veh" style="--brand:${BRANDS[v.brand].solid}${BRANDS[v.brand].solidB ? ';--brand-b:' + BRANDS[v.brand].solidB : ''}">${esc(v.name)}</span>
@@ -616,7 +624,7 @@
       </div>`));
     });
     const series = brands.map((b) => ({ brand: b, values: cats.map((c) => brandCategoryScore(b, c)) }));
-    $('.slide__radar', el).appendChild(renderRadar(cats.map((c) => c.title), series, { size: 500, radius: 0.38, padX: 210, padY: 48, font: 16, wrap: 18, labelGap: 36, labelColor: '#fff', center: true, full: true, animate: activeForm === 'cab' }));
+    $('.slide__radar', el).appendChild(renderRadar(cats.map((c) => c.title), series, { size: 500, radius: activeForm === 'cab' ? 0.42 : 0.38, padX: 210, padY: activeForm === 'cab' ? 58 : 48, font: 16, wrap: 18, labelGap: 36, labelColor: '#fff', center: true, full: true, flat: true, dashExcept: 'scania', animate: activeForm === 'cab' }));
     if (activeForm === 'cab') revealRadar(el);   // Test Drive's radar appears at once
     return el;
   }
