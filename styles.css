@@ -1863,6 +1863,17 @@ body.test .cover::before {
   bottom: auto;
   height: calc(var(--vh, 1vh) * 100);
 }
+/* In the home-screen app the iPad status bar (clock, wifi, battery) sits over the strip above the content. On every
+   screen except the intro, give that strip the header row's colour so the header seems to run all the way to the top. */
+body.test:not(.is-intro)::before {
+  content: "";
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--safe-top);
+  background: var(--navy-900);
+  z-index: 1;
+  pointer-events: none;
+}
 
 /* fullscreen mode: belt-and-braces so nothing peeks at the edges */
 body.test:fullscreen,
