@@ -1853,6 +1853,16 @@ body.test .cover {
 }
 body.test .bg-hex { display: none; }
 body.test.is-intro .bg-hex { display: block; opacity: .7; }
+/* The intro cover's own pattern layer must line up with the full-page pattern behind it (.bg-hex, fixed to the
+   viewport). body.test is pushed down by the iPad status bar when the app runs from the home screen
+   (env(safe-area-inset-top)), which moved the cover, and its pattern, away from the fixed one — the two patterns then
+   read as one doubled pattern. Pull the cover's layer back up by that amount and give it the viewport's height. */
+:root { --safe-top: env(safe-area-inset-top, 0px); }
+body.test .cover::before {
+  top: calc(-1 * var(--safe-top));
+  bottom: auto;
+  height: calc(var(--vh, 1vh) * 100);
+}
 
 /* fullscreen mode: belt-and-braces so nothing peeks at the edges */
 body.test:fullscreen,
