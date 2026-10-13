@@ -992,6 +992,11 @@
         row('Fullscreen API', yn(document.fullscreenEnabled || document.webkitFullscreenEnabled) + ' (in fullscreen now: ' + yn(!!(document.fullscreenElement || document.webkitFullscreenElement)) + ')'),
         row('Service worker', 'supported: ' + yn('serviceWorker' in navigator) + ', controlling this page: ' + yn(!!(navigator.serviceWorker && navigator.serviceWorker.controller))),
         row('Manifest', link ? link.getAttribute('href') : 'none'),
+        row('Stylesheet', (document.querySelector('link[rel="stylesheet"]') || {}).href || 'none'),
+        row('Scripts', Array.prototype.map.call(document.scripts, function (sc) { return sc.getAttribute('src'); }).filter(Boolean).join(', ')),
+        row('Strip behind status bar', (function () { var b = getComputedStyle(document.body, '::before'); return b.content && b.content !== 'none' ? ('shown, ' + b.height + ', ' + b.backgroundColor) : 'not shown (intro screen or old version)'; })()),
+        row('Header row colour', (function () { var hd = document.querySelector('.screen__head'); return hd ? getComputedStyle(hd).backgroundColor : 'no header on this screen'; })()),
+        row('Cache version', '<span id="stdDiagCache">…</span>'),
         row('Address', location.href),
         row('Time on device', new Date().toString()),
         row('Browser', navigator.userAgent)
@@ -1002,6 +1007,8 @@
       box.innerHTML = '<div style="max-width:760px;margin:0 auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><strong style="font-size:18px">Device check</strong><button id="stdDiagClose" style="font:inherit;font-weight:700;color:#fff;background:#11264f;border:1px solid #1b3262;border-radius:999px;padding:10px 22px">Close</button></div><table style="border-collapse:collapse;width:100%">' + rows + '</table></div>';
       document.body.appendChild(box);
       document.getElementById('stdDiagClose').onclick = function () { box.remove(); };
+      if (window.caches && caches.keys) caches.keys().then(function (k) { var el = document.getElementById('stdDiagCache'); if (el) el.textContent = k.join(', ') || 'none'; }).catch(function () {});
+      else { var el0 = document.getElementById('stdDiagCache'); if (el0) el0.textContent = 'not available'; }
     }
     /* a roomy box in the top-left corner: the strip right under the iPad status bar can swallow touches, so the box reaches well below it */
     function inCorner(e) { return e.clientX <= CORNER_W && e.clientY <= CORNER_H; }
