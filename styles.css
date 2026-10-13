@@ -1809,7 +1809,7 @@ body.test .screen {
   padding:
     calc(clamp(40px, 8svh, 100px) + env(safe-area-inset-top))
     clamp(24px, 5vw, 60px)
-    calc(90px + env(safe-area-inset-bottom))
+    calc(90px + env(safe-area-inset-bottom) + var(--lift, 0px))
     clamp(24px, 5vw, 60px);
   --pad-x: clamp(24px, 5vw, 60px);
   --pad-top: calc(clamp(40px, 8svh, 100px) + env(safe-area-inset-top));
@@ -1828,7 +1828,7 @@ body.test .screen__head {
 }
 body.test .screen__foot {
   position: absolute;
-  bottom: calc(30px + env(safe-area-inset-bottom));
+  bottom: calc(30px + env(safe-area-inset-bottom) + var(--lift, 0px));
   left: clamp(24px, 5vw, 60px);
   right: clamp(24px, 5vw, 60px);
   padding-top: 0;
@@ -1848,7 +1848,7 @@ body.test .cover {
   padding:
     calc(40px + env(safe-area-inset-top))
     clamp(28px, 6vw, 80px)
-    calc(48px + env(safe-area-inset-bottom))
+    calc(48px + env(safe-area-inset-bottom) + var(--lift, 0px))
     clamp(28px, 6vw, 80px);
 }
 body.test .bg-hex { display: none; }
@@ -1858,6 +1858,8 @@ body.test.is-intro .bg-hex { display: block; opacity: .7; }
    (env(safe-area-inset-top)), which moved the cover, and its pattern, away from the fixed one — the two patterns then
    read as one doubled pattern. Pull the cover's layer back up by that amount and give it the viewport's height. */
 :root { --safe-top: env(safe-area-inset-top, 0px); }
+/* extra room under the intro text and the Back/Next buttons in the kiosk flow */
+body.test { --lift: 60px; }
 body.test .cover::before {
   top: calc(-1 * var(--safe-top));
   bottom: auto;
