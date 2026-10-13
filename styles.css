@@ -1820,6 +1820,7 @@ body.test .screen::before { opacity: .08; }   /* subtle pattern on question scre
    edges, not the window's — stretch it the rest of the way to the true
    viewport edges, padding out the extra so the logo/chip don't shift. */
 body.test .screen__head {
+  min-height: calc(60px + var(--head-extra, 24px));   /* taller header row: more air around the logo and the buttons */
   width: 100vw;
   margin-left: calc(-1 * var(--pad-x, 26px) - max(0px, (100vw - 820px) / 2));
   margin-right: calc(-1 * var(--pad-x, 26px) - max(0px, (100vw - 820px) / 2));
@@ -1846,7 +1847,7 @@ body.test .cover {
   box-shadow: none;
   background: transparent;
   padding:
-    calc(17px + env(safe-area-inset-top))   /* the logo's centre lines up with the logo in the header row of the other screens */
+    calc(29px + env(safe-area-inset-top))   /* the logo's centre lines up with the logo in the header row of the other screens */
     clamp(28px, 6vw, 80px)
     calc(48px + env(safe-area-inset-bottom) + var(--lift, 0px))
     clamp(28px, 6vw, 80px);
