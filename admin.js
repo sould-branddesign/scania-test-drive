@@ -560,7 +560,7 @@
 
   function slideCover() {
     const evald = evaluatedVehicles();
-    return h(`<div class="slide slide--cover">
+    return h(`<div class="slide slide--cover${activeForm === 'cab' ? ' slide--cover-row' : ''}">
       <div class="slide--cover__glow" aria-hidden="true"></div>
       <img class="logo-lockup" src="assets/scania-lockup.png" alt="Scania">
       <div class="slide--cover__btm">

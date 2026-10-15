@@ -1975,6 +1975,8 @@ body.test:-webkit-full-screen { background: var(--navy-900); }
 .slide--cover .logo { height: 34px; }
 .slide__lockup { height: 32px; width: auto; align-self: flex-start; }   /* full lock-up on slides 2 and 3 */
 .slide--cover .logo-lockup { height: 32px; width: auto; align-self: flex-start; }   /* full lock-up: emblem + wordmark */
+/* Cab: the radar slide has its logo at 64px / 34px, so the cover's logo sits exactly there too (the cover's own padding is 76px / 66px) */
+.slide--cover-row .logo-lockup { position: relative; left: -12px; top: -32px; }
 /* Same start-page motion as the apps: three blurred orbs drifting (glow-orb1-3)
    behind the cover, and the hex pattern pulsing. Sizes are the apps' vmin values
    at this 720px-tall stage. */
