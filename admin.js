@@ -576,12 +576,11 @@
      and the score counts up alongside. */
   function revealRadar(slide) {
     const rows = Array.from(slide.querySelectorAll('.slide__listrow'));
-    /* Tags in a row under the radar (Cab): each tag jumps up together with its brand's shape, one brand at a time
-       from left to right. In the side list (Test Drive's layout) the shapes go lowest average first so the leader
-       lands last, and each row slides in from the left with its shape. */
+    /* Each tag arrives together with its brand's shape, one brand at a time, lowest average first so the leader lands
+       last. In the row under the radar (Cab) the tags jump up from below; in the side list (Test Drive's layout)
+       each row slides in from the left. */
     const rowMode = slide.classList.contains('is-row');
-    const rowIndex = (brand) => rows.findIndex((r) => r.dataset.brand === brand);
-    const groups = Array.from(slide.querySelectorAll('.radar__series')).sort(rowMode ? (a, b) => rowIndex(a.dataset.brand) - rowIndex(b.dataset.brand) : (a, b) => a.dataset.avg - b.dataset.avg);
+    const groups = Array.from(slide.querySelectorAll('.radar__series')).sort((a, b) => a.dataset.avg - b.dataset.avg);
     const GROW = 900, AXIS = 70, STEP = rowMode ? 1800 : 2000, START = 500;
     const easeOut = (x) => 1 - Math.pow(1 - x, 3);
     const back = (x) => { const c1 = 1.25, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
@@ -615,8 +614,8 @@
       <div class="slide__body"><div class="slide__list"></div><div class="slide__radar"></div></div>
     </div>`);
     const list = $('.slide__list', el);
-    /* Cab: the tags run from the lowest score on the left to the highest on the right, and appear in that order */
-    (activeForm === 'cab' ? evald.slice().reverse() : evald).slice(0, 12).forEach((v) => {
+    /* the tags run from the highest score on the left to the lowest on the right */
+    evald.slice(0, 12).forEach((v) => {
       const ov = vehicleOverall(v.id);
       list.appendChild(h(`<div class="slide__listrow" data-brand="${v.brand}">
         <span class="slide__veh" style="--brand:${BRANDS[v.brand].solid}${BRANDS[v.brand].solidB ? ';--brand-b:' + BRANDS[v.brand].solidB : ''}">${esc(v.name)}</span>
