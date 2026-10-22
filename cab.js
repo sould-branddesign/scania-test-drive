@@ -181,7 +181,7 @@
     };
 
     LANGS.forEach(({ code, label }) => {
-      const showAi = code !== 'en' && code !== 'sv';
+      const showAi = code !== 'en';
       const opt = h(`<button type="button" class="lang-picker__opt ${state.lang === code ? 'is-selected' : ''}">
         <span>${esc(label)}</span>
         ${showAi ? `<img class="lang-picker__ai" src="${AI_TRANSLATED_ICON}" alt="AI-translated" title="AI-translated">` : ''}
