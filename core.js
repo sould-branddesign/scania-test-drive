@@ -168,7 +168,7 @@
     'Latvia','Lithuania','Luxembourg',
     'Norway','Poland','Portugal','Romania',
     'Serbia','Slovakia','Slovenia','Spain','Sweden','Switzerland',
-    'Turkey','Ukraine','United Kingdom',
+    'Turkey','Ukraine','United Kingdom','Used Vehicle Managers',
   ];
   const T = {
     en: { chooseLanguage: 'Choose language', welcome: 'Welcome to the evaluation of your test drive.', chooseVehicle: 'Choose your vehicle:', next: 'Next', back: 'Back', submit: 'Submit', confirmTitle: 'Are you sure?', confirmMsg: 'Once submitted you cannot go back and change your answers.', done: 'Done', selectCategory: 'Select a category', thanks: 'Thank you!', submitted: (v) => `Your ratings for ${v} have been submitted.`, nextCar: 'Next truck', startOver: 'Start over', tap: 'Tap to start', restarting: (n) => `Restarting in ${n}s` , cabWelcome: "Welcome to the Cab Assessment.", cabAssess: "Assess every vehicle — tap one to start:", cabThanksMsg: "Your Cab Assessment ratings for all vehicles have been submitted.", idleTitle: "Are you still there?", idleMsg: "Back to the start screen in {n} s unless you continue.", idleContinue: "Continue" },
