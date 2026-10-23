@@ -2130,9 +2130,24 @@ body.test.form-eval .screen__foot {
   margin-top: auto;
   padding: 28px 0 calc(28px + env(safe-area-inset-bottom));
 }
-/* Session Evaluation on a phone: a smaller handle than the kiosk's 32px */
-@media (max-width: 600px) {
-  body.form-eval .slider { height: 8px; }
-  body.form-eval .slider::-webkit-slider-thumb { width: 22px; height: 22px; border-width: 3px; box-shadow: 0 0 10px -1px var(--track, var(--teal-bright)); }
-  body.form-eval .slider::-moz-range-thumb { width: 22px; height: 22px; border-width: 3px; box-shadow: 0 0 10px -1px var(--track, var(--teal-bright)); }
+
+/* Session Evaluation: 1–6 answer buttons (1 = strongly disagree, 6 = strongly agree) */
+.eval-scale { display: grid; grid-template-columns: repeat(6, 1fr); gap: clamp(6px, 2vw, 14px); }
+.eval-scale__opt {
+  appearance: none;
+  height: 48px;
+  border-radius: 999px;
+  border: 1.5px solid var(--navy-600);
+  background: var(--navy-700);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.eval-scale__opt:focus-visible { outline: 2px solid var(--track, #01B2D3); outline-offset: 2px; }
+.eval-scale__opt.is-selected { background: var(--track, #01B2D3); border-color: var(--track, #01B2D3); color: var(--navy-900); }
+/* Session Evaluation: more room between the two questions */
+body.test.form-eval .screen__body .question-metrics-cab .metric { margin-bottom: clamp(34px, 6vh, 56px); }
+body.test.form-eval .screen__body .question-metrics-cab .metric:last-child { margin-bottom: 0; }

@@ -34,13 +34,11 @@
     { id: 'bev',         title: 'BEV Session at the demo center' },
   ];
   const METRICS = [
-    /* label = the statement the customer rates; head = the fixed column name in the sheet */
-    { id: 'relevance', label: 'This session was relevant to me', head: 'Relevance' },
-    { id: 'quality',   label: 'This session was of high quality', head: 'Quality' },
+    /* head = the fixed column name in the sheet */
+    { id: 'relevance', label: 'Relevance', head: 'Relevance', min: 'Not relevant', max: 'Highly relevant' },
+    { id: 'quality',   label: 'Quality',   head: 'Quality',   min: 'Poor',         max: 'Excellent' },
   ];
-  const SCALE_MIN = 1, SCALE_MAX = 6;   // 1 = strongly disagree … 6 = strongly agree
-  const SCALE_MIN_LABEL = 'Strongly disagree';
-  const SCALE_MAX_LABEL = 'Strongly agree';
+  const SCALE_MIN = 1, SCALE_MAX = 6;   // 1 = lowest … 6 = highest
   const TOTAL = SESSIONS.length + 1;   // + the comments slide
 
   let ui = { view: 'question', step: 0, answers: {}, comment: '' };
@@ -102,26 +100,25 @@
       const draft = ui.answers[session.id] || (ui.answers[session.id] = {});
       const wrap = h('<div class="question-metrics-cab"></div>');
       METRICS.forEach((m) => {
-        const val = draft[m.id] != null ? draft[m.id] : SCALE_MIN;
         const metric = h(`<div class="metric">
           <div class="metric__top">
             <span class="metric__label">${esc(m.label)}</span>
-            <span class="metric__value" style="color:${accent}">${draft[m.id] != null ? val : '–'}/${SCALE_MAX}</span>
+            <span class="metric__value" style="color:${accent}">${draft[m.id] != null ? draft[m.id] : '–'}/${SCALE_MAX}</span>
           </div>
-          <input class="slider" type="range" min="${SCALE_MIN}" max="${SCALE_MAX}" step="1" value="${val}" style="--track:${accent}" aria-label="${esc(session.title + ' – ' + m.label)}">
-          <div class="metric__ends"><span>${esc(SCALE_MIN_LABEL)}</span><span>${esc(SCALE_MAX_LABEL)}</span></div>
+          <div class="eval-scale" role="radiogroup" aria-label="${esc(session.title + ' – ' + m.label)}" style="--track:${accent}"></div>
+          <div class="metric__ends"><span>${esc(m.min)}</span><span>${esc(m.max)}</span></div>
         </div>`);
-        const input = $('.slider', metric);
+        const scale = $('.eval-scale', metric);
         const valEl = $('.metric__value', metric);
-        const paint = () => { const pct = ((input.value - SCALE_MIN) / (SCALE_MAX - SCALE_MIN)) * 100; input.style.background = `linear-gradient(90deg, ${accent} ${pct}%, var(--navy-700) ${pct}%)`; };
-        const answer = () => { draft[m.id] = Number(input.value); valEl.textContent = `${input.value}/${SCALE_MAX}`; };
-        input.oninput = () => { answer(); paint(); };
-        /* the handle rests on 1 before anyone touches it, so a tap that leaves it
-           on 1 is a real answer of 1 — 'input' only fires when the value changes.
-           A slider nobody touched stays unanswered, shown as –/6. */
-        input.addEventListener('pointerup', () => { if (draft[m.id] == null) answer(); });
-        input.addEventListener('keydown', () => { if (draft[m.id] == null) answer(); });
-        paint();
+        for (let n = SCALE_MIN; n <= SCALE_MAX; n++) {
+          const btn = h(`<button type="button" class="eval-scale__opt${draft[m.id] === n ? ' is-selected' : ''}" role="radio" aria-checked="${draft[m.id] === n}">${n}</button>`);
+          btn.onclick = () => {
+            draft[m.id] = n;
+            valEl.textContent = `${n}/${SCALE_MAX}`;
+            scale.querySelectorAll('.eval-scale__opt').forEach((o, i) => { const on = SCALE_MIN + i === n; o.classList.toggle('is-selected', on); o.setAttribute('aria-checked', String(on)); });
+          };
+          scale.appendChild(btn);
+        }
         wrap.appendChild(metric);
       });
       b.appendChild(wrap);

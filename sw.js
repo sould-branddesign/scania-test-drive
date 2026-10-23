@@ -2,7 +2,7 @@
    SCANIA · TEST DRIVE — Service Worker
    Cache-first for assets, network-first for HTML.
    ============================================================ */
-const CACHE = 'scania-td-v251';
+const CACHE = 'scania-td-v254';
 
 const PRECACHE = [
   './',
@@ -10,11 +10,11 @@ const PRECACHE = [
   'cab.html',
   'eval.html',
   'admin.html',
-  'styles.css?v=310',
+  'styles.css?v=312',
   'core.js?v=97',
   'test.js?v=59',
   'cab.js?v=93',
-  'eval.js?v=6',
+  'eval.js?v=8',
   'sheets.js?v=22',
   'assets/scania-logo.svg',
   'assets/scania-lockup.png',
