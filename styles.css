@@ -2114,3 +2114,19 @@ body.admin[data-form="cab"] .topnav__tag {
 .deck.is-full .deck__close { opacity: 0; pointer-events: none; transition: opacity .3s ease; }
 .deck.is-full.is-active .deck__controls, .deck.is-full.is-active .deck__close { opacity: 1; pointer-events: auto; }
 .deck.is-full:not(.is-active) { cursor: none; }
+
+/* Session Evaluation (eval.html): the optional comments slide */
+.eval-comment .textarea { display: block; min-height: 150px; resize: none; line-height: 1.4; }
+/* Session Evaluation is mainly filled in on a phone (and may be opened on a
+   computer), not on a fixed-size kiosk screen: let the page grow and scroll
+   when a small phone or the on-screen keyboard leaves too little height,
+   with BACK/NEXT below the content instead of pinned to the screen's bottom. */
+body.test.form-eval { overflow-x: hidden; overflow-y: auto; }
+body.test.form-eval .app { height: auto; min-height: calc(var(--vh, 1vh) * 100); overflow: visible; }
+body.test.form-eval .screen { height: auto; min-height: calc(var(--vh, 1vh) * 100); }
+body.test.form-eval .screen__body { flex: 1 0 auto; padding-bottom: 0; }
+body.test.form-eval .screen__foot {
+  position: static;
+  margin-top: auto;
+  padding: 28px 0 calc(28px + env(safe-area-inset-bottom));
+}
