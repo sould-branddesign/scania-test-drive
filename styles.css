@@ -2123,10 +2123,16 @@ body.admin[data-form="cab"] .topnav__tag {
    with BACK/NEXT below the content instead of pinned to the screen's bottom. */
 body.test.form-eval { overflow-x: hidden; overflow-y: auto; }
 body.test.form-eval .app { height: auto; min-height: calc(var(--vh, 1vh) * 100); overflow: visible; }
-body.test.form-eval .screen { height: auto; min-height: calc(var(--vh, 1vh) * 100); }
+body.test.form-eval .screen { height: auto; min-height: calc(var(--vh, 1vh) * 100); padding-bottom: 0; }   /* the kiosk reserves 150px at the bottom for its pinned buttons */
 body.test.form-eval .screen__body { flex: 1 0 auto; padding-bottom: 0; }
 body.test.form-eval .screen__foot {
   position: static;
   margin-top: auto;
   padding: 28px 0 calc(28px + env(safe-area-inset-bottom));
+}
+/* Session Evaluation on a phone: a smaller handle than the kiosk's 32px */
+@media (max-width: 600px) {
+  body.form-eval .slider { height: 8px; }
+  body.form-eval .slider::-webkit-slider-thumb { width: 22px; height: 22px; border-width: 3px; box-shadow: 0 0 10px -1px var(--track, var(--teal-bright)); }
+  body.form-eval .slider::-moz-range-thumb { width: 22px; height: 22px; border-width: 3px; box-shadow: 0 0 10px -1px var(--track, var(--teal-bright)); }
 }
