@@ -21,14 +21,16 @@
   let ui = { view: 'intro', currentVehicle: null, stepIndex: 0, draftsByVehicle: {}, completedVehicles: new Set(), timers: {}, timerOrder: [] };
 
   /* ---------- per-vehicle countdown ---------- */
-  /* The first vehicle a visitor starts gets 13 minutes, every other one 10 —
+  /* The first vehicle a visitor starts gets 12 minutes, every other one 9 —
      whichever model it is. The clock only runs while that vehicle's
      question screens are showing (it pauses in the hub and resumes where
      it left off), and it never blocks anything: when time is up it just
      turns red and counts up. Elapsed time is measured from timestamps, not
      by counting ticks, so a dimmed or throttled tablet doesn't drift. */
-  const FIRST_VEHICLE_MIN = 13;
-  const OTHER_VEHICLE_MIN = 10;
+  const FIRST_VEHICLE_MIN = 12;
+  const OTHER_VEHICLE_MIN = 9;
+  /* the alarm only sounds on the last vehicle, this long before its time is up */
+  const ALARM_BEFORE_END_MS = 2 * 60000;
 
   function resetTimers() { ui.timers = {}; ui.timerOrder = []; }
 
@@ -53,6 +55,57 @@
     tm.startedAt = now;
   }
 
+  /* Alarm sound (2 minutes left on the last vehicle): assets/sounds/time-up.m4a (precached by sw.js, so it plays
+     offline). Browsers — iPad Safari especially — only let audio start after a
+     touch, so the first tap anywhere unlocks it; every visitor has tapped plenty
+     by the time a clock can run out. The iPad's silent switch still mutes it. */
+  const TIME_UP_SRC = 'assets/sounds/time-up.m4a';
+  let audioCtx = null, timeUpBuffer = null, timeUpLoading = false;
+
+  function loadTimeUp() {
+    if (timeUpBuffer || timeUpLoading || !audioCtx) return;
+    timeUpLoading = true;
+    fetch(TIME_UP_SRC)
+      .then((r) => r.arrayBuffer())
+      .then((data) => new Promise((ok, fail) => audioCtx.decodeAudioData(data, ok, fail)))
+      .then((buf) => { timeUpBuffer = buf; })
+      .catch(() => {})
+      .then(() => { timeUpLoading = false; });
+  }
+
+  function unlockAudio() {
+    try {
+      if (!audioCtx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) audioCtx = new AC(); }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+      loadTimeUp();
+    } catch (e) {}
+  }
+  ['pointerup', 'touchend', 'click', 'keydown'].forEach((ev) => document.addEventListener(ev, unlockAudio, { capture: true, passive: true }));
+
+  function playTimeUp() {
+    if (!audioCtx || audioCtx.state !== 'running') return;
+    if (timeUpBuffer) {
+      const src = audioCtx.createBufferSource();
+      src.buffer = timeUpBuffer;
+      src.connect(audioCtx.destination);
+      src.start();
+      return;
+    }
+    /* the file hasn't loaded (e.g. never cached): three plain beeps beat silence for an alarm */
+    const t0 = audioCtx.currentTime + 0.05;
+    [880, 880, 1175].forEach((freq, i) => {
+      const start = t0 + i * 0.32, dur = i === 2 ? 0.5 : 0.2;
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(start); osc.stop(start + dur + 0.02);
+    });
+  }
+
   function paintTimer(el) {
     const tm = ui.timers[ui.currentVehicle];
     if (!el || !tm) return;
@@ -60,9 +113,19 @@
     const remaining = tm.limitMs - elapsed;
     const fmt = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
     const over = remaining <= 0;
+    /* On the last vehicle (the only one not yet completed) the clock turns red
+       and the alarm sounds once, when 2 minutes are left — the other vehicles
+       stay calm until their time is up. The alarm is skipped when a tablet was
+       just woken up long after that moment. */
+    const isLastVehicle = state.cabVehicles.every((v) => v.id === ui.currentVehicle || ui.completedVehicles.has(v.id));
+    const warn = isLastVehicle && remaining <= ALARM_BEFORE_END_MS;
+    if (warn && !tm.alerted) {
+      tm.alerted = true;
+      if (remaining > ALARM_BEFORE_END_MS - 3000 && document.visibilityState === 'visible') playTimeUp();
+    }
     const text = over ? '+' + fmt(Math.floor(-remaining / 1000)) : fmt(Math.ceil(remaining / 1000));
     if (el.textContent !== text) el.textContent = text;
-    el.classList.toggle('is-over', over);
+    el.classList.toggle('is-over', over || warn);
   }
 
   setInterval(() => paintTimer(document.querySelector('.cab-timer')), 250);
@@ -343,7 +406,8 @@
       paint();
       wrap.appendChild(metric);
     });
-    b.appendChild(wrap);
+    /* a category without metrics is an instruction screen only — nothing to rate */
+    if (cat.metrics.length) b.appendChild(wrap); else b.classList.add('is-instruction-only');
     s.appendChild(b);
 
     const isLast = ui.stepIndex === total - 1;

@@ -25,6 +25,10 @@
   const toIso = (s) => { const d = new Date(s); if (isNaN(d)) return s; const y = d.getFullYear(); const m = String(d.getMonth()+1).padStart(2,'0'); const dy = String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${dy}`; };
 
   function activeQuestions() { return activeForm === 'cab' ? state.cabQuestions : state.questions; }
+  /* A Cab category can have no metrics at all — it is then just an instruction
+     screen, with nothing to rate — so results, charts and the presentation only
+     use the categories that actually carry a rating. */
+  function ratedQuestions() { return activeQuestions().filter((c) => c.metrics.length); }
   function activeVehicles() { return activeForm === 'cab' ? state.cabVehicles : state.vehicles; }
   function evaluatedVehicles() {
     return activeVehicles().filter((v) => state.answers[v.id] && Object.keys(state.answers[v.id]).length);
@@ -166,7 +170,7 @@
     wrap.appendChild(h(`<div class="results__head">
       <div>
         <h1>Evaluation Results</h1>
-        <p>${evald.length} vehicle${evald.length === 1 ? '' : 's'} evaluated across ${activeQuestions().length} categories</p>
+        <p>${evald.length} vehicle${evald.length === 1 ? '' : 's'} evaluated across ${ratedQuestions().length} categories</p>
       </div>
       <div class="results__tools">
         <div class="group-setter" id="groupSetter"></div>
@@ -244,7 +248,7 @@
     } else {
       wrap.appendChild(groupCard());
       const grid = h('<div class="cards-grid"></div>');
-      activeQuestions().forEach((cat) => grid.appendChild(barCard(cat)));
+      ratedQuestions().forEach((cat) => grid.appendChild(barCard(cat)));
       wrap.appendChild(grid);
     }
 
@@ -400,7 +404,7 @@
   }
 
   function groupCard() {
-    const cats = activeQuestions();
+    const cats = ratedQuestions();
     const brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
 
@@ -566,7 +570,7 @@
       <div class="slide--cover__btm">
         <div class="slide--cover__eyebrow">Sales Force Boost | 2026</div>
         <h1 class="slide--cover__title">Evaluation<br>Results</h1>
-        <div class="slide--cover__meta">${evald.length} vehicles · ${activeQuestions().length} categories · ${activeForm === 'cab' ? 'Cab Assessment' : 'Test Drive'}${filterGroup ? ' · ' + (d => `${d.getDate()} ${['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]} ${d.getFullYear()}`)(new Date(filterGroup)) : ''}${activeForm === 'cab' && filterHalf ? ' · ' + HALF_LABEL[filterHalf] : ''}</div>
+        <div class="slide--cover__meta">${evald.length} vehicles · ${ratedQuestions().length} categories · ${activeForm === 'cab' ? 'Cab Assessment' : 'Test Drive'}${filterGroup ? ' · ' + (d => `${d.getDate()} ${['January','February','March','April','May','June','July','August','September','October','November','December'][d.getMonth()]} ${d.getFullYear()}`)(new Date(filterGroup)) : ''}${activeForm === 'cab' && filterHalf ? ' · ' + HALF_LABEL[filterHalf] : ''}</div>
       </div>
     </div>`);
   }
@@ -607,7 +611,7 @@
   }
 
   function slideGroup() {
-    const cats = activeQuestions(), brands = brandsPresent();
+    const cats = ratedQuestions(), brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
     const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : (activeForm === 'cab' ? ' is-row' : ' is-wide')}">
       <div class="slide__head"><img class="slide__lockup" src="assets/scania-lockup.png" alt="Scania"></div>
@@ -702,7 +706,7 @@
 
   function slideMarkets() {
     const formId = activeForm === 'cab' ? 'cab' : 'testdrive';
-    const cats = activeQuestions();
+    const cats = ratedQuestions();
     const marketSubs = submissions.filter((s) => (s.formId || 'testdrive') === formId && s.country && (!filterGroup || toIso(s.group) === toIso(filterGroup)));
     const markets = [...new Set(marketSubs.map((s) => s.country))].sort();
 
@@ -769,7 +773,7 @@
       const accent = brandAccent(v.brand);
       const vs = vehicleOverall(v.id);
       const isWinner = i === 0;
-      const catScores = activeQuestions().map((c) => {
+      const catScores = ratedQuestions().map((c) => {
         const s = brandCategoryScore(v.brand, c);
         return `<span class="summary__cat"><span class="summary__cat-label">${esc(c.title)}</span><span class="summary__cat-score" style="color:${accent}">${s != null ? s.toFixed(1) : '–'}</span></span>`;
       }).join('');
@@ -1194,7 +1198,7 @@
         <h1>Edit Questions</h1>
         <button class="btn secondary" data-act="reset">Reset to default</button>
       </div>
-      <p class="editor__hint">Add, edit, reorder or remove the evaluation categories and their rating metrics. Each metric becomes a 0–10 slider in the test-drive flow. Changes are saved and used by the test page.</p>
+      <p class="editor__hint">Add, edit, reorder or remove the evaluation categories and their rating metrics. Each metric becomes a 0–10 slider in the test-drive flow.${activeForm === 'cab' ? ' A Cab category with no metrics is shown as an instruction only.' : ''} Changes are saved and used by the test page.</p>
 
       <div class="lang-edit-bar">
         <label for="editLangSelect">Editing text for</label>
@@ -1343,7 +1347,7 @@
             <div class="field" style="margin:0"><label>Metric label <span class="field__en" title="Column code in the Sheets export: ${esc(m.code)}">#${ci + 1}${cat.metrics.length > 1 ? String.fromCharCode(97 + mi) : ''}</span></label><input class="input" data-mf="label" value="${esc(m.label)}"></div>
             <div class="field" style="margin:0"><label>Left label</label><input class="input" data-mf="min" value="${esc(m.min)}"></div>
             <div class="field" style="margin:0"><label>Right label</label><input class="input" data-mf="max" value="${esc(m.max)}"></div>
-            <button class="iconbtn danger" data-act="del-metric" ${cat.metrics.length === 1 ? 'disabled' : ''} title="Remove metric">✕</button>
+            <button class="iconbtn danger" data-act="del-metric" ${cat.metrics.length === 1 && activeForm !== 'cab' ? 'disabled' : ''} title="Remove metric">✕</button>
           </div>
         </div>`));
       });
@@ -1419,7 +1423,7 @@
       case 'up': if (ci > 0) { [editDraft[ci - 1], editDraft[ci]] = [editDraft[ci], editDraft[ci - 1]]; renderQList(); } break;
       case 'down': if (ci < editDraft.length - 1) { [editDraft[ci + 1], editDraft[ci]] = [editDraft[ci], editDraft[ci + 1]]; renderQList(); } break;
       case 'add-metric': editDraft[ci].metrics.push({ id: slug('metric-' + Math.random()), label: 'New metric', min: 'Low', max: 'High', scale: 10 }); renderQList(); break;
-      case 'del-metric': { const mi = Number(btn.closest('[data-mi]').dataset.mi); if (editDraft[ci].metrics.length > 1) { editDraft[ci].metrics.splice(mi, 1); renderQList(); } break; }
+      case 'del-metric': { const mi = Number(btn.closest('[data-mi]').dataset.mi); if (editDraft[ci].metrics.length > 1 || activeForm === 'cab') { editDraft[ci].metrics.splice(mi, 1); renderQList(); } break; }
       case 'mark-reviewed': {
         const catEl2 = btn.closest('[data-catid]');
         if (catEl2 && translationDraft && translationDraft[catEl2.dataset.catid]) {
