@@ -13,6 +13,12 @@
   const FIXED_VEHICLE_ID = urlParams.get('vehicle') || '';
 
   const activeQuestions = () => CAB_MODE ? state.cabQuestions : state.questions;
+  /* the questions the current vehicle is actually asked (see scaniaOnly in core.js) — the submission still
+     carries the full list, so the Sheets columns stay the same for every vehicle */
+  function flowQuestions() {
+    const vehicle = activeVehicles().find((v) => v.id === ui.currentVehicle);
+    return window.STD.questionsForBrand(activeQuestions(), vehicle && vehicle.brand);
+  }
   const activeVehicles = () => CAB_MODE ? state.cabVehicles : state.vehicles;
 
   /* computed fresh at submit time rather than read from state.group, which
@@ -241,7 +247,7 @@
 
   /* ---------- a question step ---------- */
   function viewQuestion() {
-    const cat = tCat(activeQuestions()[ui.stepIndex]);
+    const cat = tCat(flowQuestions()[ui.stepIndex]);
     const vehicle = activeVehicles().find((v) => v.id === ui.currentVehicle);
     const brand = vehicle ? BRANDS[vehicle.brand] : BRANDS.scania;
     const s = screen();
@@ -251,7 +257,7 @@
     hd.querySelector('.screen__head-right').appendChild(h(`<span class="vehicle-chip" data-brand="${vehicle ? vehicle.brand : ''}" style="${chipStyle}">${esc(vehicle ? vehicle.name : '')}</span>`));
     s.appendChild(hd);
 
-    const total = activeQuestions().length;
+    const total = flowQuestions().length;
     const step = h(`<div class="stepper" style="--step:${brand.text || brand.solid}"></div>`);
     for (let i = 0; i < total; i++) {
       const cls = i < ui.stepIndex ? 'is-done' : i === ui.stepIndex ? 'is-current' : '';

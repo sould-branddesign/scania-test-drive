@@ -29,6 +29,8 @@
      screen, with nothing to rate — so results, charts and the presentation only
      use the categories that actually carry a rating. */
   function ratedQuestions() { return activeQuestions().filter((c) => c.metrics.length); }
+  /* what the brands are compared on (radar, overall score): a Test Drive category only Scania is asked is left out */
+  function comparableQuestions() { return ratedQuestions().filter((c) => !c.scaniaOnly); }
   function activeVehicles() { return activeForm === 'cab' ? state.cabVehicles : state.vehicles; }
   function evaluatedVehicles() {
     return activeVehicles().filter((v) => state.answers[v.id] && Object.keys(state.answers[v.id]).length);
@@ -45,7 +47,7 @@
     return (br && (br.text || br.solid)) || '#fff';
   }
   function vehicleOverall(vehicleId) {
-    const scores = activeQuestions().map((c) => vehicleCategoryScore(vehicleId, c)).filter((s) => s != null);
+    const scores = comparableQuestions().map((c) => vehicleCategoryScore(vehicleId, c)).filter((s) => s != null);
     if (!scores.length) return null;
     return scores.reduce((s, v) => s + v, 0) / scores.length;
   }
@@ -404,7 +406,7 @@
   }
 
   function groupCard() {
-    const cats = ratedQuestions();
+    const cats = comparableQuestions();
     const brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
 
@@ -611,7 +613,7 @@
   }
 
   function slideGroup() {
-    const cats = ratedQuestions(), brands = brandsPresent();
+    const cats = comparableQuestions(), brands = brandsPresent();
     const evald = evaluatedVehicles().slice().sort((a, b) => (vehicleOverall(b.id) || 0) - (vehicleOverall(a.id) || 0));
     const el = h(`<div class="slide slide--group${evald.length > 6 ? ' is-compact' : (activeForm === 'cab' ? ' is-row' : ' is-wide')}">
       <div class="slide__head"><img class="slide__lockup" src="assets/scania-lockup.png" alt="Scania"></div>
@@ -1337,6 +1339,7 @@
               : `<div class="icon-picker__empty">No icon</div>`}
           </div>
         </div>
+        ${activeForm === 'cab' ? '' : `<label class="field field--check"><input type="checkbox" data-f="scaniaOnly" ${cat.scaniaOnly ? 'checked' : ''}> Only ask for Scania vehicles (competitors skip this category)</label>`}
         <div class="metrics"></div>
         <button class="btn add" data-act="add-metric">+ Add metric</button>
       </div>`);
@@ -1400,7 +1403,7 @@
     if (editLang === 'en') {
       const catEl = e.target.closest('[data-ci]'); if (!catEl) return;
       const ci = Number(catEl.dataset.ci);
-      if (f) { editDraft[ci][f] = e.target.value; }
+      if (f) { editDraft[ci][f] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; }
       else if (mf) { const mi = Number(e.target.closest('[data-mi]').dataset.mi); editDraft[ci].metrics[mi][mf] = e.target.value; }
     } else {
       const catEl = e.target.closest('[data-catid]'); if (!catEl) return;

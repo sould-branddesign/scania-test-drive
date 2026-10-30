@@ -2160,3 +2160,7 @@ body.test .screen__body.is-instruction-only .question-head--cab + .screen__sub-g
   body.test .screen__body.is-instruction-only .screen__sub { font-size: 20px; }
   body.test .screen__body.is-instruction-only .question-head--cab + .screen__sub-group { margin-top: 24px; }
 }
+
+/* admin question editor: a tick box with its text on one line */
+.field--check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.field--check input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; }

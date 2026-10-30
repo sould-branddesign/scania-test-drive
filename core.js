@@ -810,6 +810,7 @@
       title: c.title || 'Untitled category',
       instruction: c.instruction || '',
       routeIcon: c.routeIcon || '',   // shown on the test-drive question screen; travels with the category, not its position
+      scaniaOnly: !!c.scaniaOnly,     // Test Drive: only asked when the vehicle is a Scania (competitors skip it)
       metrics: (c.metrics || []).map((m) => ({
         id: m.id || slug(m.label),
         code: m.code || '',
@@ -869,8 +870,11 @@
     if (!vals.length) return null;
     return vals.reduce((s, v) => s + v, 0) / vals.length;
   }
+  /* the categories a vehicle of this brand is asked — a scaniaOnly one is skipped for every other brand */
+  function questionsForBrand(list, brand) { return list.filter((c) => !c.scaniaOnly || brand === 'scania'); }
+  /* the overall score only counts categories every brand is asked, so a Scania-only one doesn't tilt the comparison */
   function vehicleOverall(vehicleId) {
-    const scores = state.questions.map((c) => vehicleCategoryScore(vehicleId, c)).filter((s) => s != null);
+    const scores = state.questions.filter((c) => !c.scaniaOnly).map((c) => vehicleCategoryScore(vehicleId, c)).filter((s) => s != null);
     if (!scores.length) return null;
     return scores.reduce((s, v) => s + v, 0) / scores.length;
   }
@@ -938,7 +942,7 @@
     STORE_KEY, $, h, esc, clamp, hashStr, slug,
     BRANDS, brandOf, startIdleGuard, srcHash, translationStatus, QI18N_SRC, DEFAULT_VEHICLES, DEFAULT_QUESTIONS, DEFAULT_CAB_VEHICLES, DEFAULT_CAB_QUESTIONS, LANGS, COUNTRIES, T, t, tCat, QI18N,
     state, save, load, seedDemo, normaliseCategory, normaliseQuestions, getConfigBundle, applyRemoteConfig,
-    vehicleCategoryScore, vehicleOverall, evaluatedVehicles, brandsPresent, brandCategoryScore, computeAll,
+    vehicleCategoryScore, vehicleOverall, questionsForBrand, evaluatedVehicles, brandsPresent, brandCategoryScore, computeAll,
     onQuestionsChanged: null,   // pages set this to re-render when questions change
   };
   /* Cab Assessment's per-category icons, by category id — used by cab.js and
