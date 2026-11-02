@@ -44,16 +44,18 @@
      so answers submitted from either tile land under the same vehicle
      in the results, exactly as if it were one button. */
   /* Test Drive vehicles, in the order (and with the numbers) of the event's
-     vehicle list. The number is part of the displayed name ("1. Scania …"),
-     the id is the plain name so it stays stable if the numbering changes. */
+     vehicle list. The number is part of the displayed name ("1. Scania …").
+     [name, id?] — the id is permanent (answers are stored under it), so a
+     vehicle whose name was corrected keeps its original id (the plain name
+     as it was first entered). */
   const DEFAULT_VEHICLES = [
-    'Scania 500R A6X2/4NB', 'Volvo FH Aero 510 A4x2',
-    'Scania 40S A4X2NB', 'Mercedes eActros 600 LS A4x2',
-    'Scania 460R A4X2NA', 'MAN TGX 18.480 BLS A4x2',
-    'Scania 560S A4X2NB', 'DAF XG+ 480 FT A4x2',
-    'Scania 33R A4X2NB', 'Volvo FH Electric A4x2',
-    'Scania 500R A4x2LB', 'Mercedes Actros 1851 LS A4x2',
-  ].map((name, i) => ({ id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: (i + 1) + '. ' + name, brand: brandOf(name) }));
+    ['Scania 500R A6x2/4NB'], ['Volvo FH Aero 460 4x2', 'volvo-fh-aero-510-a4x2'],
+    ['Scania 40S A4x2NB'], ['Mercedes eActros 600 LS 4x2', 'mercedes-eactros-600-ls-a4x2'],
+    ['Scania 460R A4x2NA'], ['MAN TGX 18.480 4x2 LL SA', 'man-tgx-18-480-bls-a4x2'],
+    ['Scania 560S A4x2NB'], ['DAF XG+ 530 FT 4x2', 'daf-xg-480-ft-a4x2'],
+    ['Scania 33R A4x2NB'], ['Volvo FH Electric 4x2', 'volvo-fh-electric-a4x2'],
+    ['Scania 500R A4x2LB'], ['Mercedes Actros 1845 LS 4x2', 'mercedes-actros-1851-ls-a4x2'],
+  ].map(([name, id], i) => ({ id: id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: (i + 1) + '. ' + name, brand: brandOf(name) }));
 
   /* ---------- default questions (the 5 evaluation steps) ---------- */
   const DEFAULT_QUESTIONS = [
@@ -100,7 +102,7 @@
   /* [name, id?] — the id is permanent (answers are stored under it), so a
      renamed vehicle keeps its original id. */
   const DEFAULT_CAB_VEHICLES = [
-    ['Scania CR20H'], ['Volvo FH Aero'], ['MAN TGX'], ['Mercedes Actros', 'mercedes-actros'],
+    ['Scania 430R', 'scania-cr20h'], ['Volvo FH Aero'], ['MAN TGX'], ['Mercedes Actros', 'mercedes-actros'],
   ].map(([name, id]) => ({ id: id || name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, brand: brandOf(name) }));
 
   const DEFAULT_CAB_QUESTIONS = [

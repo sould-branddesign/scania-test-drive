@@ -457,46 +457,54 @@ function restoreConfigBackup() {
   Logger.log('Återställde konfigurationen från "' + target.getName() + '". ' + result.getContent());
 }
 
-/* ---- Byt namn på ett Cab Assessment-fordon (engångskörning) ----
+/* ---- Byt namn på Cab Assessment-fordon (engångskörning) ----
    Fordonens namn ligger i den delade konfigurationen (Config-arket), inte i
    appens kod, så ett nytt namn måste ändras där för att nå alla plattor.
    Fordonets id ändras ALDRIG — svaren är sparade under id:t, så gamla svar
-   hamnar fortfarande under rätt fordon. Ändra de två raderna nedan och kör
-   renameCabVehicle från redigeraren. Funktionen sparar via saveConfig, så en
-   säkerhetskopia av läget före skapas automatiskt (kan backas med
-   restoreConfigBackup) och plattorna får det nya namnet inom ungefär en minut. */
-const RENAME_CAB_VEHICLE_ID = 'mercedes-actros';
-const RENAME_CAB_VEHICLE_TO = 'Mercedes Actros';
+   hamnar fortfarande under rätt fordon. Ändra namnen nedan (id: nytt namn)
+   och kör renameCabVehicles från redigeraren. Funktionen sparar via
+   saveConfig, så en säkerhetskopia av läget före skapas automatiskt (kan
+   backas med restoreConfigBackup) och plattorna får de nya namnen inom
+   ungefär en minut. */
+const RENAME_CAB_VEHICLES = {
+  'scania-cr20h': 'Scania 430R',
+};
 
-function renameCabVehicle() {
+function renameCabVehicles() {
   const config = readConfig().config;
   if (!config || !Array.isArray(config.cabVehicles)) { Logger.log('Hittar ingen konfiguration med fordon — avbryter.'); return; }
-  const v = config.cabVehicles.filter((x) => x.id === RENAME_CAB_VEHICLE_ID)[0];
-  if (!v) { Logger.log('Hittar inget Cab-fordon med id "' + RENAME_CAB_VEHICLE_ID + '".'); return; }
-  if (v.name === RENAME_CAB_VEHICLE_TO) { Logger.log('Fordonet heter redan "' + v.name + '" — inget att göra.'); return; }
-  const before = v.name;
-  v.name = RENAME_CAB_VEHICLE_TO;
+  let changed = 0;
+  Object.keys(RENAME_CAB_VEHICLES).forEach((id) => {
+    const v = config.cabVehicles.filter((x) => x.id === id)[0];
+    if (!v) { Logger.log('Hittar inget Cab-fordon med id "' + id + '".'); return; }
+    if (v.name === RENAME_CAB_VEHICLES[id]) { Logger.log('"' + v.name + '" heter redan rätt — hoppar över.'); return; }
+    Logger.log('Byter namn: "' + v.name + '" → "' + RENAME_CAB_VEHICLES[id] + '" (id ' + id + ').');
+    v.name = RENAME_CAB_VEHICLES[id];
+    changed++;
+  });
+  if (!changed) { Logger.log('Inget att ändra.'); return; }
   saveConfig(JSON.stringify(config));
-  Logger.log('Bytte namn: "' + before + '" → "' + v.name + '" (id ' + v.id + ').');
+  Logger.log('Sparade ' + changed + ' nya fordonsnamn.');
 }
 
 /* ---- Sätt Test Drives fordonslista (engångskörning) ----
    Fordonen (namn, ordning och löpnummer) ligger i den delade konfigurationen,
    så en ny lista måste in där för att nå alla plattor. Listan nedan är i den
    ordning som eventets fordonslista har; numret läggs framför namnet
-   ("1. Scania 500R A6X2/4NB") och visas överallt — fordonsvalet, taggen under
-   utvärderingen, resultaten och Vehicle-kolumnen i Sheets. Id:t är namnet utan
-   nummer, så ett fordon som behåller sitt namn behåller sitt id. Ändra listan
+   ("1. Scania 500R A6x2/4NB") och visas överallt — fordonsvalet, taggen under
+   utvärderingen, resultaten och Vehicle-kolumnen i Sheets. Id:t ändras inte för
+   ett fordon som står kvar på samma plats (se nedan), så rättade namn delar
+   inte upp redan insamlade svar. Ändra listan
    här och kör setTestDriveVehicles; en säkerhetskopia av läget före skapas
    automatiskt (restoreConfigBackup backar). Plattorna får listan inom ungefär
-   en minut. Cab Assessments fordon ändras med renameCabVehicle. */
+   en minut. Cab Assessments fordon ändras med renameCabVehicles. */
 const TEST_DRIVE_VEHICLES = [
-  'Scania 500R A6X2/4NB', 'Volvo FH Aero 510 A4x2',
-  'Scania 40S A4X2NB', 'Mercedes eActros 600 LS A4x2',
-  'Scania 460R A4X2NA', 'MAN TGX 18.480 BLS A4x2',
-  'Scania 560S A4X2NB', 'DAF XG+ 480 FT A4x2',
-  'Scania 33R A4X2NB', 'Volvo FH Electric A4x2',
-  'Scania 500R A4x2LB', 'Mercedes Actros 1851 LS A4x2',
+  'Scania 500R A6x2/4NB', 'Volvo FH Aero 460 4x2',
+  'Scania 40S A4x2NB', 'Mercedes eActros 600 LS 4x2',
+  'Scania 460R A4x2NA', 'MAN TGX 18.480 4x2 LL SA',
+  'Scania 560S A4x2NB', 'DAF XG+ 530 FT 4x2',
+  'Scania 33R A4x2NB', 'Volvo FH Electric 4x2',
+  'Scania 500R A4x2LB', 'Mercedes Actros 1845 LS 4x2',
 ];
 
 function vehicleBrandOf(name) {
@@ -512,11 +520,19 @@ function vehicleBrandOf(name) {
 function setTestDriveVehicles() {
   const config = readConfig().config;
   if (!config) { Logger.log('Hittar ingen konfiguration — avbryter.'); return; }
-  const list = TEST_DRIVE_VEHICLES.map((name, i) => ({
-    id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    name: (i + 1) + '. ' + name,
-    brand: vehicleBrandOf(name),
-  }));
+  /* Ett fordon som står på samma plats och har samma märke som i den sparade
+     listan behåller sitt id — svaren är sparade under id:t, så ett rättat namn
+     får aldrig dela upp resultaten. Nya fordon får id av namnet. */
+  const existing = Array.isArray(config.vehicles) ? config.vehicles : [];
+  const list = TEST_DRIVE_VEHICLES.map((name, i) => {
+    const brand = vehicleBrandOf(name);
+    const old = existing[i];
+    return {
+      id: old && old.id && old.brand === brand ? old.id : name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      name: (i + 1) + '. ' + name,
+      brand: brand,
+    };
+  });
   if (JSON.stringify(config.vehicles) === JSON.stringify(list)) { Logger.log('Fordonslistan är redan som den ska — inget att göra.'); return; }
   config.vehicles = list;
   saveConfig(JSON.stringify(config));
