@@ -1326,7 +1326,7 @@ function setupDailySummaryTrigger() {
    Det som inte kan kontrolleras härifrån (plattorna: hemskärm, autolås,
    Styrd åtkomst, wifi) står i personalguiden. */
 const EXPECTED_TD_CATEGORIES = 6;
-const EXPECTED_CAB_CATEGORIES = 8;
+const EXPECTED_CAB_CATEGORIES = 7;
 const EXPECTED_CAB_VEHICLES = 4;
 
 function buildPreEventMail(items) {
