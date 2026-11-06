@@ -178,7 +178,8 @@
         <div class="group-setter" id="groupSetter"></div>
         <div class="results__actions">
           <button class="btn" data-act="present" ${evald.length ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'}>▶ Present — ${filterGroup || 'All days'}${activeForm === 'cab' && filterHalf ? ' · ' + HALF_LABEL[filterHalf] : ''}</button>
-          <button class="btn secondary" data-act="export" ${submissions.some(matchesFilter) ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'} title="Download the evaluations shown by the date and market filters as an Excel file">Export Excel</button>
+          <button class="btn secondary" data-act="export" ${submissions.some(matchesFilter) ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'} title="Download the evaluations shown by the date and market filters as an Excel file">Export today</button>
+          <button class="btn secondary" data-act="export-all" ${submissions.length ? '' : 'disabled style="opacity:.4;cursor:not-allowed"'} title="Download every response collected so far, all days together, as one Excel file (Test Drive and Cab Assessment on separate sheets)">Export all</button>
         </div>
       </div>
     </div>`));
@@ -276,6 +277,7 @@
         });
       }
       if (a.dataset.act === 'export') exportResults();
+      if (a.dataset.act === 'export-all') exportAllResults();
       if (a.dataset.act === 'sheets-refresh' && !a.classList.contains('is-loading')) {
         const before = submissions.length;
         a.classList.add('is-loading');
@@ -353,6 +355,7 @@
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet([head].concat(rows));
       ws['!cols'] = head.map((h2, i) => ({ wch: i === 0 ? 19 : i < 6 ? 18 : 14 }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: head.length - 1 } }) };
       XLSX.utils.book_append_sheet(wb, ws, formName);
       const wq = XLSX.utils.aoa_to_sheet(questions);
       wq['!cols'] = [{ wch: 8 }, { wch: 40 }, { wch: 50 }, { wch: 22 }, { wch: 22 }];
@@ -367,6 +370,72 @@
       document.body.appendChild(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
       toast('Excel library unavailable — downloaded as CSV instead');
+    }
+  }
+
+  /* ---------- Excel export: everything so far ----------
+     One long list with every response collected so far — all days, all
+     markets, not narrowed by the filters — so the file simply grows by the
+     day's new rows each time it is exported. One row per submitted
+     evaluation: market, date, vehicle, then one column per question. Test
+     Drive and Cab Assessment each get a sheet of their own (their questions
+     differ), plus a Questions sheet that spells out what the columns are. */
+  function exportAllTable(form) {
+    const cab = form === 'cab';
+    const questions = cab ? state.cabQuestions : state.questions;
+    const vehicles = cab ? state.cabVehicles : state.vehicles;
+    const metrics = [];
+    questions.forEach((cat, ci) => cat.metrics.forEach((m, mi) => {
+      const pos = (ci + 1) + (cat.metrics.length > 1 ? String.fromCharCode(97 + mi) : '');
+      metrics.push({ id: m.id, head: pos + ' ' + m.label, pos, cat: cat.title, label: m.label, min: m.min, max: m.max });
+    }));
+    const head = ['Market', 'Date', 'Vehicle'].concat(metrics.map((m) => m.head));
+    const formId = cab ? 'cab' : 'testdrive';
+    const dayOf = (iso) => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Stockholm' }); };
+    const rows = submissions.filter((s) => (s.formId || 'testdrive') === formId)
+      .sort((x, y) => String(x.timestamp).localeCompare(String(y.timestamp)))
+      .map((s) => {
+        const v = vehicles.find((x) => x.id === s.vehicleId);   // today's name, so a renamed vehicle reads the same on every row
+        return [s.country || '', dayOf(s.timestamp), v ? v.name : (s.vehicleName || '')]
+          .concat(metrics.map((m) => (s.answers && s.answers[m.id] != null ? Number(s.answers[m.id]) : '')));
+      });
+    const legend = metrics.map((m) => [cab ? 'Cab Assessment' : 'Test Drive', m.pos, m.cat, m.label, m.min, m.max]);
+    return { head, rows, legend };
+  }
+  async function exportAllResults() {
+    const parts = [['Test Drive', exportAllTable('testdrive')], ['Cab Assessment', exportAllTable('cab')]];
+    const total = parts.reduce((n, [, t]) => n + t.rows.length, 0);
+    if (!total) { toast('Nothing to export yet'); return; }
+    const base = 'scania-all-responses-' + toIso(new Date());
+    try {
+      const XLSX = await loadSheetJS();
+      const wb = XLSX.utils.book_new();
+      parts.forEach(([name, t]) => {
+        const ws = XLSX.utils.aoa_to_sheet([t.head].concat(t.rows));
+        ws['!cols'] = t.head.map((h2, i) => ({ wch: i === 0 ? 16 : i === 1 ? 12 : i === 2 ? 30 : 14 }));
+        /* the Date column as real Excel dates (so a filter can group them by year/month/day), and a filter arrow on every column */
+        t.rows.forEach((r, i) => {
+          const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(r[1]);
+          if (m) ws[XLSX.utils.encode_cell({ r: i + 1, c: 1 })] = { t: 'n', v: Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1899, 11, 30)) / 86400000), z: 'yyyy-mm-dd' };
+        });
+        ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: t.rows.length, c: t.head.length - 1 } }) };
+        XLSX.utils.book_append_sheet(wb, ws, name);
+      });
+      const wq = XLSX.utils.aoa_to_sheet([['Form', 'Column', 'Category', 'Question', 'Left label', 'Right label']].concat(...parts.map(([, t]) => t.legend)));
+      wq['!cols'] = [{ wch: 16 }, { wch: 8 }, { wch: 40 }, { wch: 50 }, { wch: 22 }, { wch: 22 }];
+      XLSX.utils.book_append_sheet(wb, wq, 'Questions');
+      XLSX.writeFile(wb, base + '.xlsx');
+      toast('Exported ' + total + ' response' + (total === 1 ? '' : 's'));
+    } catch (err) {
+      /* no Excel library (offline): the form that is open goes out as a CSV instead */
+      const t = parts[activeForm === 'cab' ? 1 : 0][1];
+      const cell = (v) => '"' + String(v).replace(/"/g, '""') + '"';
+      const csv = '\ufeff' + [t.head].concat(t.rows).map((r) => r.map(cell).join(';')).join('\r\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = base + '-' + (activeForm === 'cab' ? 'cab' : 'test-drive') + '.csv';
+      document.body.appendChild(link); link.click(); link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('Excel library unavailable — downloaded ' + (activeForm === 'cab' ? 'Cab Assessment' : 'Test Drive') + ' as CSV instead');
     }
   }
 
